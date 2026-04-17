@@ -5,6 +5,8 @@ import ApplicationsLookupModal from '../components/ApplicationsLookupModal'
 import ConfirmModal from '../components/ConfirmModal'
 import DisplayText from '../components/DisplayText'
 import PageMessage from '../components/PageMessage'
+import { useSettings } from '../contexts/SettingsContext'
+import { maskText } from '../utils/maskText'
 
 function formatNoteDate(ts) {
   if (!ts) return ''
@@ -23,6 +25,7 @@ function formatNoteDate(ts) {
 export default function CompanyDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { settings } = useSettings()
   const [company, setCompany] = useState(null)
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
@@ -128,11 +131,14 @@ export default function CompanyDetailPage() {
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h1><DisplayText>{company.name}</DisplayText></h1>
-          {company.link && (
-            <a href={company.link} target="_blank" rel="noopener noreferrer">
-              {company.link}
-            </a>
-          )}
+          {company.link &&
+            (settings.maskSensitive ? (
+              <div className="text-break text-muted">{maskText(company.link)}</div>
+            ) : (
+              <a href={company.link} target="_blank" rel="noopener noreferrer" className="text-break">
+                {company.link}
+              </a>
+            ))}
         </div>
         <button className="btn btn-outline-danger" onClick={handleDeleteClick}>
           Delete

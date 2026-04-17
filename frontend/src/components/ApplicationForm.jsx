@@ -243,13 +243,14 @@ export default function ApplicationForm({ initial, onSave, onCancel, notesLog = 
             <div className="input-group">
               <input
                 id="jobUrl"
-                type="url"
+                type={mask ? 'text' : 'url'}
                 className="form-control"
-                value={jobUrl}
-                onChange={(e) => setJobUrl(e.target.value)}
+                value={mask ? maskText(jobUrl) : jobUrl}
+                onChange={(e) => !mask && setJobUrl(e.target.value)}
+                readOnly={mask}
                 placeholder="https://..."
               />
-              {jobUrl?.trim() && (
+              {jobUrl?.trim() && !mask && (
                 <a
                   className="btn btn-outline-secondary"
                   href={jobUrl}
