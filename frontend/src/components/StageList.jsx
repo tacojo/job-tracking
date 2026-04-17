@@ -598,10 +598,10 @@ function StageDetails({ stage, allStages, onClose, onSave, onDelete, formatDate,
                 <label className="form-label small mb-0">Contact name</label>
                 <input
                   type="text"
-                  className={`form-control form-control-sm ${useRecruiterContact ? 'bg-secondary bg-opacity-10' : ''}`}
-                  value={contactName}
-                  onChange={(e) => !useRecruiterContact && setContactName(e.target.value)}
-                  readOnly={useRecruiterContact}
+                  className={`form-control form-control-sm ${useRecruiterContact || mask ? 'bg-secondary bg-opacity-10' : ''}`}
+                  value={mask ? maskText(contactName) : contactName}
+                  onChange={(e) => !mask && !useRecruiterContact && setContactName(e.target.value)}
+                  readOnly={mask || useRecruiterContact}
                   placeholder="e.g. Mike"
                 />
               </div>
@@ -609,10 +609,10 @@ function StageDetails({ stage, allStages, onClose, onSave, onDelete, formatDate,
                 <label className="form-label small mb-0">LinkedIn profile</label>
                 <input
                   type="url"
-                  className={`form-control form-control-sm ${useRecruiterContact ? 'bg-secondary bg-opacity-10' : ''}`}
-                  value={contactLinkedin}
-                  onChange={(e) => !useRecruiterContact && setContactLinkedin(e.target.value)}
-                  readOnly={useRecruiterContact}
+                  className={`form-control form-control-sm ${useRecruiterContact || mask ? 'bg-secondary bg-opacity-10' : ''}`}
+                  value={mask ? maskText(contactLinkedin) : contactLinkedin}
+                  onChange={(e) => !mask && !useRecruiterContact && setContactLinkedin(e.target.value)}
+                  readOnly={mask || useRecruiterContact}
                   placeholder="https://linkedin.com/in/…"
                 />
               </div>

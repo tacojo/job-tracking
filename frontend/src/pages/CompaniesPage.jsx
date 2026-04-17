@@ -7,6 +7,8 @@ import ConfirmModal from '../components/ConfirmModal'
 import DisplayText from '../components/DisplayText'
 import { useDisplayText } from '../hooks/useDisplayText'
 import PageMessage from '../components/PageMessage'
+import { useSettings } from '../contexts/SettingsContext'
+import { maskText } from '../utils/maskText'
 
 const PAGE_SIZE = 10
 const SORT_FIELDS = [
@@ -35,6 +37,7 @@ export default function CompaniesPage() {
   const [deleteId, setDeleteId] = useState(null)
   const [deleteBlocked, setDeleteBlocked] = useState(null) // { entity_type, entity_name, message }
   const [showAppsModal, setShowAppsModal] = useState(false)
+  const { settings } = useSettings()
   const displayNote = useDisplayText
 
   const load = async () => {
@@ -174,9 +177,18 @@ export default function CompaniesPage() {
                     <td className="text-nowrap">{formatDateOnly(c.created_at)}</td>
                     <td>
                       {c.link ? (
-                        <a href={c.link} target="_blank" rel="noopener noreferrer" className="text-truncate d-inline-block" style={{ maxWidth: 200 }}>
-                          {c.link.length > 40 ? c.link.slice(0, 40) + '…' : c.link}
-                        </a>
+                        settings.maskSensitive ? (
+                          <span className="text-muted text-truncate d-inline-block" style={{ maxWidth: 200 }}>
+                            {(() => {
+                              const s = maskText(c.link)
+                              return s.length > 40 ? s.slice(0, 40) + '…' : s
+                            })()}
+                          </span>
+                        ) : (
+                          <a href={c.link} target="_blank" rel="noopener noreferrer" className="text-truncate d-inline-block" style={{ maxWidth: 200 }}>
+                            {c.link.length > 40 ? c.link.slice(0, 40) + '…' : c.link}
+                          </a>
+                        )
                       ) : (
                         '—'
                       )}

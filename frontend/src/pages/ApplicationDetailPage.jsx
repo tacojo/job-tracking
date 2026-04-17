@@ -95,13 +95,13 @@ export default function ApplicationDetailPage() {
   const formatDate = (d) =>
     d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
 
+  const displayCompany = useDisplayText(app?.company)
+  const displayRole = useDisplayText(app?.role)
+  const displayRecruiter = useDisplayText(app?.recruiter)
+
   if (loading) return <PageMessage variant="loading">Loading…</PageMessage>
   if (error) return <PageMessage variant="danger" title="Error">{error}</PageMessage>
   if (!app) return null
-
-  const displayCompany = useDisplayText(app.company)
-  const displayRole = useDisplayText(app.role)
-  const displayRecruiter = useDisplayText(app.recruiter)
 
   const appsByScheduledAt = [...appsList].sort((a, b) => {
     const aT = a.latest_stage_at ? new Date(a.latest_stage_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0)

@@ -5,6 +5,8 @@ import ApplicationsLookupModal from '../components/ApplicationsLookupModal'
 import ConfirmModal from '../components/ConfirmModal'
 import DisplayText from '../components/DisplayText'
 import PageMessage from '../components/PageMessage'
+import { useSettings } from '../contexts/SettingsContext'
+import { maskText } from '../utils/maskText'
 
 function formatNoteDate(ts) {
   if (!ts) return ''
@@ -23,6 +25,7 @@ function formatNoteDate(ts) {
 export default function RecruiterDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { settings } = useSettings()
   const [recruiter, setRecruiter] = useState(null)
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
@@ -128,11 +131,14 @@ export default function RecruiterDetailPage() {
       <div className="d-flex justify-content-between align-items-start mb-4">
         <div>
           <h1><DisplayText>{recruiter.name}</DisplayText></h1>
-          {recruiter.link && (
-            <a href={recruiter.link} target="_blank" rel="noopener noreferrer">
-              {recruiter.link}
-            </a>
-          )}
+          {recruiter.link &&
+            (settings.maskSensitive ? (
+              <div className="text-break text-muted">{maskText(recruiter.link)}</div>
+            ) : (
+              <a href={recruiter.link} target="_blank" rel="noopener noreferrer" className="text-break">
+                {recruiter.link}
+              </a>
+            ))}
         </div>
         <button className="btn btn-outline-danger" onClick={handleDeleteClick}>
           Delete
