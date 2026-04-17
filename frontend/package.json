@@ -1,0 +1,26 @@
+{
+  "name": "job-tracking-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:chrome": "cross-env BROWSER=chrome vite --open",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.59.0",
+    "bootstrap": "^5.3.3",
+    "mammoth": "^1.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.0",
+    "recharts": "^2.13.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "cross-env": "^7.0.3",
+    "vite": "^5.1.0"
+  }
+}

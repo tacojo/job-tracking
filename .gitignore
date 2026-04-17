@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.poetry/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Environment
+.env
+.env.*
+.env.local
+*.local
+!.env.example
+
+# Storage (local files)
+storage/
+backend/storage/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+coverage.xml
+.coverage
+htmlcov/
+
+# Python tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Internal planning notes
+scratch/
+
+# Backend pytest artifacts
+backend/tests/test_app.db
+backend/tests/test_storage/
+
+
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.sql text eol=lf

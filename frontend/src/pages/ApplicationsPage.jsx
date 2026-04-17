@@ -1,0 +1,425 @@
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { api } from '../api'
+import ApplicationCreateForm from '../components/ApplicationCreateForm'
+import DisplayText from '../components/DisplayText'
+import ErrorBoundary from '../components/ErrorBoundary'
+import PageMessage from '../components/PageMessage'
+import RoadmapChart from '../components/RoadmapChart'
+
+const STAGE_TYPES = [
+  { value: '', label: 'All stages' },
+  { value: 'APPLIED', label: 'Applied' },
+  { value: 'RECRUITER_CALL', label: 'Recruiter Call' },
+  ...Array.from({ length: 5 }, (_, i) => ({ value: `STAGE_${i + 1}`, label: `Stage ${i + 1}` })),
+  { value: 'OFFER', label: 'Offer' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'NO_FEEDBACK', label: 'No Feedback' },
+]
+
+const STAGE_LABELS = Object.fromEntries(STAGE_TYPES.filter((s) => s.value).map((s) => [s.value, s.label]))
+
+const ACTIVITY_LABELS = {
+  call: 'call',
+  hometest: 'home test',
+  pair_programming: 'pair programming',
+}
+
+const TABLE_PAGE_SIZE = 10
+const STAGE_FILTER_MODES = {
+  latest: 'latest',
+  ever: 'ever',
+}
+
+export default function ApplicationsPage() {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const showAddForm = searchParams.get('add') === '1'
+  const setShowAddForm = (show) => {
+    if (show) {
+      setSearchParams({ add: '1' })
+    } else {
+      setSearchParams({})
+    }
+  }
+
+  const [applications, setApplications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [filters, setFilters] = useState({
+    company: '',
+    role: '',
+    recruiter: '',
+    stage: '',
+    stageMode: STAGE_FILTER_MODES.latest,
+  })
+  const [sortField, setSortField] = useState('latest_stage_at')
+  const [sortAsc, setSortAsc] = useState(false)
+  const [tablePage, setTablePage] = useState(1)
+
+  const load = async (filterOverride) => {
+    const f = filterOverride !== undefined ? filterOverride : filters
+    setLoading(true)
+    setError(null)
+    setTablePage(1)
+    try {
+      const activeFilters = {}
+      if (f.company) activeFilters.company = f.company
+      if (f.role) activeFilters.role = f.role
+      if (f.recruiter) activeFilters.recruiter = f.recruiter
+      if (f.stage) activeFilters.stage = f.stage
+      if (f.stage) activeFilters.stage_mode = f.stageMode
+      const data = await api.applications.list(activeFilters)
+      setApplications(data)
+    } catch (e) {
+      setError(e.message || 'Failed to load applications')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, []) // Initial load only; Apply button triggers filter
+
+  const handleCreate = async (data) => {
+    const created = await api.applications.create(data)
+    setShowAddForm(false)
+    load()
+    navigate(`/applications/${created.uuid}`)
+  }
+
+  const handleSort = (field) => {
+    setSortField(field)
+    setSortAsc((prev) => (sortField === field ? !prev : true))
+    setTablePage(1)
+  }
+
+  const sortedApps = [...applications].sort((a, b) => {
+    let aVal = a[sortField]
+    let bVal = b[sortField]
+    if (sortField === 'latest_stage_type') {
+      aVal = a.latest_stage_type || ''
+      bVal = b.latest_stage_type || ''
+    }
+    if (sortField === 'updated_at' || sortField === 'latest_stage_at') {
+      aVal = aVal ? new Date(aVal).getTime() : 0
+      bVal = bVal ? new Date(bVal).getTime() : 0
+    }
+    if (sortField === 'recruiter') {
+      aVal = aVal || ''
+      bVal = bVal || ''
+    }
+    if (aVal < bVal) return sortAsc ? -1 : 1
+    if (aVal > bVal) return sortAsc ? 1 : -1
+    return 0
+  })
+
+  const totalTablePages = Math.max(1, Math.ceil(sortedApps.length / TABLE_PAGE_SIZE))
+  const paginatedApps = sortedApps.slice(
+    (tablePage - 1) * TABLE_PAGE_SIZE,
+    tablePage * TABLE_PAGE_SIZE
+  )
+  const hasPrevPage = tablePage > 1
+  const hasNextPage = tablePage < totalTablePages
+
+  const formatDate = (d) =>
+    d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
+  const formatDateAndTime = (d) => {
+    if (!d) return ''
+    const dt = new Date(d)
+    const hasTime = dt.getHours() !== 0 || dt.getMinutes() !== 0
+    const dateStr = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    if (!hasTime) return dateStr
+    const timeStr = dt.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })
+    return `${dateStr}, ${timeStr}`
+  }
+
+  const getDetailPath = (app) => `/applications/${app.uuid}`
+
+  const isFutureLatestStage = (app) => {
+    if (!app.latest_stage_at) return false
+    return new Date(app.latest_stage_at).getTime() > Date.now()
+  }
+
+  const ApplicationsTableRow = ({ app }) => (
+    <tr className={isFutureLatestStage(app) ? 'table-success' : undefined}>
+      <td>
+        <Link to={getDetailPath(app)} className="text-decoration-none fw-medium">
+          <DisplayText>{app.company}</DisplayText>
+        </Link>
+      </td>
+      <td>
+        <Link to={getDetailPath(app)} className="text-decoration-none">
+          <DisplayText>{app.role}</DisplayText>
+        </Link>
+      </td>
+      <td>{app.recruiter ? <DisplayText>{app.recruiter}</DisplayText> : '—'}</td>
+      <td>
+          {app.latest_stage_type ? (
+            <span title={app.latest_stage_at ? formatDateAndTime(app.latest_stage_at) : ''}>
+              {STAGE_LABELS[app.latest_stage_type] || app.latest_stage_type}
+              {app.latest_stage_activity_type &&
+                /^STAGE_\d+$/.test(app.latest_stage_type) && (
+                  <span className="text-muted">
+                    {' — '}
+                    {ACTIVITY_LABELS[app.latest_stage_activity_type] ||
+                      app.latest_stage_activity_type}
+                  </span>
+                )}
+              {app.latest_stage_at && (
+                <span className="text-muted small ms-1">
+                  ({formatDateAndTime(app.latest_stage_at)})
+                </span>
+              )}
+            </span>
+          ) : (
+            '—'
+          )}
+      </td>
+      <td>{formatDate(app.updated_at)}</td>
+    </tr>
+  )
+
+  if (loading && applications.length === 0) return <PageMessage variant="loading">Loading…</PageMessage>
+  if (error) return <PageMessage variant="danger" title="Error">{error}</PageMessage>
+
+  return (
+    <div>
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h1 className="mb-0">{showAddForm ? 'Add Application' : 'Applications'}</h1>
+        <div className="d-flex align-items-center gap-3">
+          <a
+            href="https://calendar.google.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-link text-decoration-none p-0 me-2"
+            title="View calendar"
+          >
+            <span style={{ fontSize: '2rem' }}>📅</span>
+          </a>
+          <button
+            className={showAddForm ? 'btn btn-outline-secondary' : 'btn btn-forest'}
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? 'Cancel' : 'Add Application'}
+          </button>
+        </div>
+      </div>
+
+      {showAddForm ? (
+        <div className="card mb-4">
+          <div className="card-body">
+            <ApplicationCreateForm onSave={handleCreate} onCancel={() => setShowAddForm(false)} />
+          </div>
+        </div>
+      ) : (
+        <>
+      <div className="card mb-4">
+        <div className="card-header">
+          <strong>Roadmap (Gantt)</strong>
+          <span className="text-muted small ms-2">Active applications — stages over time</span>
+        </div>
+        <div className="card-body">
+          <ErrorBoundary>
+            <RoadmapChart />
+          </ErrorBoundary>
+        </div>
+      </div>
+      <div className="card mb-4">
+        <div className="card-body">
+          <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <h6 className="card-title mb-0">Filter</h6>
+            <div className="d-flex align-items-center gap-2">
+              <span className="small text-muted">Is latest status?</span>
+              <div className="form-check form-check-inline mb-0">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="stageFilterMode"
+                  id="stageFilterLatestYes"
+                  checked={filters.stageMode === STAGE_FILTER_MODES.latest}
+                  onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.latest }))}
+                />
+                <label className="form-check-label small" htmlFor="stageFilterLatestYes">Yes</label>
+              </div>
+              <div className="form-check form-check-inline mb-0">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="stageFilterMode"
+                  id="stageFilterLatestNo"
+                  checked={filters.stageMode === STAGE_FILTER_MODES.ever}
+                  onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.ever }))}
+                />
+                <label className="form-check-label small" htmlFor="stageFilterLatestNo">No</label>
+              </div>
+            </div>
+          </div>
+          <div className="row g-2 align-items-end">
+            <div className="col-6 col-md-3">
+              <label className="form-label small mb-0">Company</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Acme"
+                value={filters.company}
+                onChange={(e) => setFilters((f) => ({ ...f, company: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && load()}
+              />
+            </div>
+            <div className="col-6 col-md-3">
+              <label className="form-label small mb-0">Role</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Engineer"
+                value={filters.role}
+                onChange={(e) => setFilters((f) => ({ ...f, role: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && load()}
+              />
+            </div>
+            <div className="col-6 col-md-3">
+              <label className="form-label small mb-0">Recruiter</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Jane"
+                value={filters.recruiter}
+                onChange={(e) => setFilters((f) => ({ ...f, recruiter: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && load()}
+              />
+            </div>
+            <div className="col-6 col-md-2">
+              <label className="form-label small mb-0">
+                {filters.stageMode === STAGE_FILTER_MODES.ever ? 'Ever in stage' : 'Latest Stage'}
+              </label>
+              <select
+                className="form-select form-select-sm"
+                value={filters.stage}
+                onChange={(e) => {
+                  const next = { ...filters, stage: e.target.value }
+                  setFilters(next)
+                  load(next)
+                }}
+              >
+                {STAGE_TYPES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-6 col-md-1">
+              <button className="btn btn-forest btn-sm w-100" onClick={load}>
+                Apply
+              </button>
+            </div>
+          </div>
+          {(filters.company || filters.role || filters.recruiter || filters.stage) && (
+            <button
+              className="btn btn-link btn-sm mt-2 p-0 text-muted"
+              onClick={() => {
+                const resetFilters = {
+                  company: '',
+                  role: '',
+                  recruiter: '',
+                  stage: '',
+                  stageMode: STAGE_FILTER_MODES.latest,
+                }
+                setFilters(resetFilters)
+                load(resetFilters)
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="table-responsive">
+        <table className="table table-sm table-hover">
+          <thead>
+            <tr>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleSort('company')}
+                className="user-select-none"
+              >
+                Company {sortField === 'company' && (sortAsc ? '↑' : '↓')}
+              </th>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleSort('role')}
+                className="user-select-none"
+              >
+                Role {sortField === 'role' && (sortAsc ? '↑' : '↓')}
+              </th>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleSort('recruiter')}
+                className="user-select-none"
+              >
+                Recruiter {sortField === 'recruiter' && (sortAsc ? '↑' : '↓')}
+              </th>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleSort('latest_stage_at')}
+                className="user-select-none"
+              >
+                Latest {sortField === 'latest_stage_at' && (sortAsc ? '↑' : '↓')}
+              </th>
+              <th
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleSort('updated_at')}
+                className="user-select-none"
+              >
+                Updated {sortField === 'updated_at' && (sortAsc ? '↑' : '↓')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedApps.map((app) => (
+              <ApplicationsTableRow key={app.id} app={app} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {applications.length > 0 && (
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2">
+          <p className="text-muted small mb-0">
+            {applications.length} application{applications.length === 1 ? '' : 's'}
+            {applications.length > TABLE_PAGE_SIZE && ` · page ${tablePage} of ${totalTablePages}`}
+          </p>
+          {totalTablePages > 1 && (
+            <div className="btn-group btn-group-sm">
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                disabled={!hasPrevPage}
+                onClick={() => setTablePage((p) => p - 1)}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                disabled={!hasNextPage}
+                onClick={() => setTablePage((p) => p + 1)}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {applications.length === 0 && (
+        <p className="text-muted mb-0">No applications yet. Add one to get started.</p>
+      )}
+        </>
+      )}
+    </div>
+  )
+}

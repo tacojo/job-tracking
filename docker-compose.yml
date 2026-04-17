@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./storage/db/job_tracking.db
+      - STORAGE_PATH=./storage
+      - FILES_ROOT=/app/storage/files
+      - BYPASS_AUTH=${BYPASS_AUTH:-true}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:8000}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./storage:/app/storage
+      - ./backend/app:/app/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_PROXY_TARGET=http://backend:8000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+    depends_on:
+      - backend

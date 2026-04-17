@@ -1,0 +1,35 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        name: Ruff lint (backend)
+        files: ^backend/.*\.py$
+      - id: ruff-format
+        name: Ruff format check (backend)
+        files: ^backend/.*\.py$
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        name: Black format (backend)
+        files: ^backend/.*\.py$
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        name: Mypy type check (backend)
+        files: ^backend/.*\.py$
+        args: [--config-file, backend/pyproject.toml]
+        additional_dependencies:
+          - pydantic-settings
+          - sqlalchemy
+          - python-jose[cryptography]
+  - repo: local
+    hooks:
+      - id: poetry-export-requirements
+        name: Export backend/requirements.txt from Poetry
+        entry: poetry -C backend export -f requirements.txt --output requirements.txt --without-hashes --without dev
+        language: system
+        files: ^backend/(pyproject\.toml|poetry\.lock)$
+        pass_filenames: false

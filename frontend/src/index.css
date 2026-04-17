@@ -1,0 +1,79 @@
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+:root {
+  --min-tap-target: 44px;
+  --bs-accent: #228b22;
+  --bs-accent-hover: #1d7a1d;
+  --bs-accent-active: #196919;
+  --bs-font: system-ui;
+}
+
+/* Accent color for header and primary actions (edit/delete keep their colors) */
+.bg-forest {
+  background-color: var(--bs-accent) !important;
+}
+
+.btn-forest {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--bs-accent);
+  --bs-btn-border-color: var(--bs-accent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--bs-accent-hover);
+  --bs-btn-hover-border-color: var(--bs-accent-hover);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--bs-accent-active);
+  --bs-btn-active-border-color: var(--bs-accent-active);
+}
+
+.btn-outline-forest {
+  --bs-btn-color: var(--bs-accent);
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: var(--bs-accent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--bs-accent);
+  --bs-btn-hover-border-color: var(--bs-accent);
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--bs-accent);
+  --bs-btn-active-border-color: var(--bs-accent);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  min-height: 100vh;
+}
+
+/* Mobile-friendly tap targets */
+@media (max-width: 768px) {
+  .btn {
+    min-height: var(--min-tap-target);
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .form-control,
+  .form-select {
+    min-height: var(--min-tap-target);
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  .table td,
+  .table th {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Ensure tables scroll on small screens */
+.table-responsive {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Safe area for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

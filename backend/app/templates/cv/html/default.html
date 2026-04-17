@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { font-family: Georgia, serif; max-width: 700px; margin: 40px auto; padding: 20px; line-height: 1.5; color: #333; }
+h1 { font-size: 24px; margin-bottom: 4px; }
+.subtitle { color: #555; font-size: 14px; margin-bottom: 20px; }
+h2 { font-size: 16px; border-bottom: 1px solid #ccc; margin-top: 24px; padding-bottom: 4px; }
+.exp { margin-bottom: 20px; }
+.exp-title { font-weight: bold; font-size: 14px; }
+.exp-meta { color: #555; font-size: 13px; margin: 4px 0; }
+.exp-details { margin: 8px 0 0 16px; padding-left: 0; list-style: disc; }
+.exp-details li { margin: 4px 0; }
+.skills { font-size: 12px; color: #666; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h1>{{ full_name }}</h1>
+<p class="subtitle">{{ tagline }}</p>
+{% if summary %}
+<p>{{ summary }}</p>
+{% endif %}
+
+<h2>Experience</h2>
+{% for exp in experiences %}
+<div class="exp">
+  <div class="exp-title">{{ exp.role }} at {{ exp.employer }}</div>
+  <div class="exp-meta">{{ exp.start_date }} - {{ exp.end_date }}{% if exp.location %}, {{ exp.location }}{% endif %}</div>
+  <ul class="exp-details">
+  {% for d in exp.details %}
+    <li>{{ d }}</li>
+  {% endfor %}
+  </ul>
+  {% if exp.skills %}
+  <div class="skills">Skills: {{ exp.skills | join(", ") }}</div>
+  {% endif %}
+</div>
+{% endfor %}
+</body>
+</html>
