@@ -55,6 +55,7 @@ export const api = {
       if (params.page_size != null) sp.set('page_size', params.page_size)
       if (params.sort != null) sp.set('sort', params.sort)
       if (params.order != null) sp.set('order', params.order)
+      if (params.q != null && params.q !== '') sp.set('q', params.q)
       const qs = sp.toString()
       const url = `${BASE}/api/companies${qs ? '?' + qs : ''}`
       return fetch(url, { credentials: 'include', headers: getAuthHeaders() }).then(handleResponse)
@@ -95,6 +96,7 @@ export const api = {
       if (params.page_size != null) sp.set('page_size', params.page_size)
       if (params.sort != null) sp.set('sort', params.sort)
       if (params.order != null) sp.set('order', params.order)
+      if (params.q != null && params.q !== '') sp.set('q', params.q)
       const qs = sp.toString()
       const url = `${BASE}/api/recruiters${qs ? '?' + qs : ''}`
       return fetch(url, { credentials: 'include', headers: getAuthHeaders() }).then(handleResponse)

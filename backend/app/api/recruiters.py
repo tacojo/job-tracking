@@ -40,6 +40,7 @@ def list_recruiters(
     page_size: int = Query(10, ge=1, le=100, description="Items per page"),
     sort: Optional[str] = Query("name", description="Sort field: name, created_at"),
     order: Optional[str] = Query("asc", description="Sort order: asc, desc"),
+    q: Optional[str] = Query(None, description="Case-insensitive name search"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -47,6 +48,8 @@ def list_recruiters(
     sort_field = sort if sort in SORT_FIELDS else "name"
     order_desc = order and order.lower() == "desc"
     base_q = db.query(Recruiter).filter(Recruiter.user_id == current_user.id)
+    if q and q.strip():
+        base_q = base_q.filter(Recruiter.name.ilike(f"%{q.strip()}%"))
     total = base_q.count()
     col = getattr(Recruiter, sort_field)
     q = base_q.order_by(col.desc() if order_desc else col.asc())

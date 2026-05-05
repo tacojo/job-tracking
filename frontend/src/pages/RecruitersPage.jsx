@@ -29,6 +29,8 @@ export default function RecruitersPage() {
   const [showPickerModal, setShowPickerModal] = useState(false)
   const [recruiters, setRecruiters] = useState([])
   const [total, setTotal] = useState(0)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [sortField, setSortField] = useState('name')
   const [sortAsc, setSortAsc] = useState(true)
@@ -49,6 +51,7 @@ export default function RecruitersPage() {
         page_size: PAGE_SIZE,
         sort: sortField,
         order: sortAsc ? 'asc' : 'desc',
+        q: searchQuery,
       })
       setRecruiters(data.items || [])
       setTotal(data.total ?? 0)
@@ -61,7 +64,7 @@ export default function RecruitersPage() {
 
   useEffect(() => {
     load()
-  }, [page, sortField, sortAsc])
+  }, [page, sortField, sortAsc, searchQuery])
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -79,6 +82,11 @@ export default function RecruitersPage() {
   const handlePickerSelect = () => {
     setShowPickerModal(false)
     load()
+  }
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    setPage(1)
+    setSearchQuery(searchInput.trim().toLowerCase())
   }
 
   const handleDeleteClick = (id) => {
@@ -122,6 +130,18 @@ export default function RecruitersPage() {
 
       <>
           {error && <div className="alert alert-danger mb-3">{error}</div>}
+          <form className="d-flex gap-2 mb-3" onSubmit={handleSearchSubmit}>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search recruiter name"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            <button type="submit" className="btn btn-outline-secondary">
+              Search
+            </button>
+          </form>
           {deleteBlocked && (
             <div className="alert alert-warning mb-3 d-flex justify-content-between align-items-start gap-2">
               <span>{deleteBlocked.message}</span>
