@@ -91,6 +91,10 @@ function isNumberedStage(stageType) {
   return /^STAGE_\d+$/.test(stageType)
 }
 
+function requiresActivityType(stageType) {
+  return stageType === 'RECRUITER_CALL' || /^STAGE_\d+$/.test(stageType)
+}
+
 /** Format date for type="date" input (YYYY-MM-DD). */
 function toDateInputValue(d) {
   if (!d) return ''
@@ -277,7 +281,7 @@ export default function StageList({ applicationId, onUpdate, expandedId: expande
               }}
             >
               {STAGE_LABELS[s.stage_type] || s.stage_type}
-              {isNumberedStage(s.stage_type) && s.activity_type && (
+              {requiresActivityType(s.stage_type) && s.activity_type && (
                 <span className="opacity-75"> — {ACTIVITY_LABELS[s.activity_type] || s.activity_type}</span>
               )}
               <small className="opacity-75 ms-1">({formatDateAndTime(s.scheduled_at)})</small>
@@ -432,6 +436,7 @@ function StageDetails({ stage, allStages, onClose, onSave, onDelete, formatDate,
   const mask = settings.maskSensitive
 
   const [notes, setNotes] = useState(stage.notes || '')
+  const [feedback, setFeedback] = useState(stage.feedback || '')
   const [scheduledDate, setScheduledDate] = useState(toDateInputValue(stage.scheduled_at))
   const [scheduledTime, setScheduledTime] = useState(toTimeInputValue(stage.scheduled_at))
   const [activityType, setActivityType] = useState(stage.activity_type || '')
@@ -443,6 +448,7 @@ function StageDetails({ stage, allStages, onClose, onSave, onDelete, formatDate,
 
   useEffect(() => {
     setNotes(stage.notes || '')
+    setFeedback(stage.feedback || '')
     setScheduledDate(toDateInputValue(stage.scheduled_at))
     setScheduledTime(toTimeInputValue(stage.scheduled_at))
     setActivityType(stage.activity_type || '')
@@ -456,13 +462,24 @@ function StageDetails({ stage, allStages, onClose, onSave, onDelete, formatDate,
     e.preventDefault()
     setSaving(true)
     setSaveError(null)
+    
+    // Validate activity type is required for RECRUITER_CALL and STAGE_1-5
+    if (requiresActivityType(stage.stage_type)) {
+      if (!activityType || !activityType.trim()) {
+        setSaveError('Activity type is required for this stage.')
+        setSaving(false)
+        return
+      }
+    }
+    
     const finalContactName = useRecruiterContact ? (recruiterName || contactName) : contactName
     const finalContactLinkedin = useRecruiterContact ? (recruiterLink || contactLinkedin) : contactLinkedin
     try {
       await onSave({
         notes: notes || null,
+        feedback: feedback || null,
         scheduled_at: toScheduledAtISO(scheduledDate, scheduledTime) ?? (scheduledDate || null),
-        activity_type: isNumberedStage(stage.stage_type) ? (activityType || null) : null,
+        activity_type: requiresActivityType(stage.stage_type) ? (activityType || null) : null,
         contact_name: finalContactName || null,
         contact_linkedin: finalContactLinkedin || null,
       })
@@ -551,15 +568,18 @@ function StageDetails({ stage, allStages, onClose, onSave, onDelete, formatDate,
                   </div>
                 </div>
               </div>
-              {isNumberedStage(stage.stage_type) && (
+              {requiresActivityType(stage.stage_type) && (
                 <div className="mb-2">
                   <div className="d-flex align-items-end gap-2">
                     <div className="flex-grow-1">
-                      <label className="form-label small mb-0">Activity type</label>
+                      <label className="form-label small mb-0">
+                        Activity type <span className="text-danger">*</span>
+                      </label>
                       <select
                         className="form-select form-select-sm"
                         value={activityType}
                         onChange={(e) => setActivityType(e.target.value)}
+                        required
                       >
                         {activityTypes.map((a) => (
                           <option key={a.value} value={a.value}>
@@ -620,17 +640,30 @@ function StageDetails({ stage, allStages, onClose, onSave, onDelete, formatDate,
               </div>
             </div>
 
-            {/* Right column: Notes, large textarea */}
+            {/* Right column: Notes and Feedback */}
             <div className="col-md-6 d-flex flex-column">
-              <label className="form-label small mb-0">Notes</label>
-              <textarea
-                className="form-control form-control-sm flex-grow-1"
-                style={{ minHeight: '8rem' }}
-                value={mask ? maskText(notes) : notes}
-                onChange={(e) => !mask && setNotes(e.target.value)}
-                readOnly={mask}
-                placeholder="Notes…"
-              />
+              <div className="mb-2">
+                <label className="form-label small mb-0">Notes</label>
+                <textarea
+                  className="form-control form-control-sm"
+                  style={{ minHeight: '6rem' }}
+                  value={mask ? maskText(notes) : notes}
+                  onChange={(e) => !mask && setNotes(e.target.value)}
+                  readOnly={mask}
+                  placeholder="Notes…"
+                />
+              </div>
+              <div>
+                <label className="form-label small mb-0">Feedback</label>
+                <textarea
+                  className="form-control form-control-sm"
+                  style={{ minHeight: '6rem' }}
+                  value={mask ? maskText(feedback) : feedback}
+                  onChange={(e) => !mask && setFeedback(e.target.value)}
+                  readOnly={mask}
+                  placeholder="Feedback from the company…"
+                />
+              </div>
             </div>
           </div>
           <div className="d-flex gap-2">

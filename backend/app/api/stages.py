@@ -20,6 +20,7 @@ STAGE_ORDER = (
 )
 TERMINUS_STAGES = {"OFFER", "REJECTED", "NO_FEEDBACK"}
 INITIAL_STAGES = {"APPLIED", "RECRUITER_CALL"}
+STAGES_REQUIRING_ACTIVITY = {"RECRUITER_CALL"} | {f"STAGE_{i}" for i in range(1, 6)}
 
 
 def _get_application_or_404(
@@ -212,6 +213,16 @@ def update_stage(
         raise HTTPException(status_code=404, detail="Stage not found")
 
     update_data = data.model_dump(exclude_unset=True)
+
+    # Validate activity_type is required for RECRUITER_CALL and STAGE_1-5
+    if stage.stage_type in STAGES_REQUIRING_ACTIVITY:
+        # Get the activity_type value after update
+        new_activity_type = update_data.get("activity_type", stage.activity_type)
+        if not new_activity_type or not new_activity_type.strip():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Activity type is required for {stage.stage_type}.",
+            )
     if (
         "scheduled_at" in update_data
         and update_data["scheduled_at"] is not None
