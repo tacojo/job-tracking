@@ -17,9 +17,11 @@ import {
 import { api } from '../api'
 import DisplayText from '../components/DisplayText'
 import PageMessage from '../components/PageMessage'
-import { STAGE_LABELS, STAGE_ORDER, TERMINUS_STAGES } from '../constants/stages'
+import { STAGE_LABELS, STAGE_ORDER, STAGE_TYPES, TERMINUS_STAGES, INACTIVE_STAGES } from '../constants/stages'
 
 const TERMINUS_STAGES_SET = new Set(TERMINUS_STAGES)
+const INACTIVE_STAGES_SET = new Set(INACTIVE_STAGES)
+const TABLE_PAGE_SIZE = 20
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -35,12 +37,14 @@ function buildLengthPivot(timeline) {
     let total = 0
     const stages = app.stages || []
     const dateForUrl = app.app_updated_at || (stages.length ? stages[stages.length - 1]?.end : null)
+    let hasInactiveStage = false
     for (let j = 0; j < stages.length; j++) {
       const stage = stages[j]
       const startMs = new Date(stage.start).getTime()
       const startDay = toDayIndex(startMs)
       const isLastStage = !stages[j + 1]
       const isTerminus = TERMINUS_STAGES_SET.has(stage.stage_type)
+      const isInactive = INACTIVE_STAGES_SET.has(stage.stage_type)
       const endDay = stages[j + 1]
         ? toDayIndex(new Date(stages[j + 1].start).getTime())
         : isLastStage && isTerminus
@@ -48,8 +52,13 @@ function buildLengthPivot(timeline) {
           : todayDay
       const days = Math.max(endDay - startDay, 1)
       daysByStage[stage.stage_type] = (daysByStage[stage.stage_type] || 0) + days
-      total += days
+      if (!isInactive) {
+        total += days
+      }
       columnsSet.add(stage.stage_type)
+      if (isInactive) {
+        hasInactiveStage = true
+      }
     }
     return {
       key: app.app_id ?? `${app.company}-${app.role}-${dateForUrl}`,
@@ -59,6 +68,7 @@ function buildLengthPivot(timeline) {
       app_uuid: app.app_uuid,
       daysByStage,
       total,
+      hasInactiveStage,
     }
   })
   const columns = STAGE_ORDER.filter((c) => columnsSet.has(c))
@@ -85,12 +95,16 @@ export default function AnalyticsPage() {
     date_from: '',
     date_to: '',
     group_by: 'day',
+    stage: '',
   })
+  const [tablePage, setTablePage] = useState(1)
+  const [showInactive, setShowInactive] = useState(true)
 
   const filterParams = {
     ...(filters.date_from ? { date_from: filters.date_from } : {}),
     ...(filters.date_to ? { date_to: filters.date_to } : {}),
     ...(filters.group_by ? { group_by: filters.group_by } : {}),
+    ...(filters.stage ? { stage: filters.stage } : {}),
   }
 
   const { data, isLoading, error } = useQuery({
@@ -100,6 +114,7 @@ export default function AnalyticsPage() {
 
   const updateFilter = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value }))
+    setTablePage(1)
   }
 
   if (isLoading) return <PageMessage variant="loading">Loading analytics…</PageMessage>
@@ -121,6 +136,19 @@ export default function AnalyticsPage() {
   } = data
 
   const lengthPivot = buildLengthPivot(timeline)
+  
+  const filteredRows = showInactive 
+    ? lengthPivot.rows 
+    : lengthPivot.rows.filter(row => !row.hasInactiveStage)
+  
+  const totalTablePages = Math.max(1, Math.ceil(filteredRows.length / TABLE_PAGE_SIZE))
+  const paginatedRows = filteredRows.slice(
+    (tablePage - 1) * TABLE_PAGE_SIZE,
+    tablePage * TABLE_PAGE_SIZE
+  )
+  const hasPrevPage = tablePage > 1
+  const hasNextPage = tablePage < totalTablePages
+  
   return (
     <div>
       <h1 className="mb-4">Analytics</h1>
@@ -149,6 +177,20 @@ export default function AnalyticsPage() {
                 value={filters.date_to}
                 onChange={(e) => updateFilter('date_to', e.target.value)}
               />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label small mb-0">Ever in stage</label>
+              <select
+                className="form-select form-select-sm"
+                value={filters.stage}
+                onChange={(e) => updateFilter('stage', e.target.value)}
+              >
+                {STAGE_TYPES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="col-md-3">
               <label className="form-label small mb-0">Group by</label>
@@ -322,6 +364,26 @@ export default function AnalyticsPage() {
       {/* Application lengths table */}
       <div className="row">
         <div className="col-12 mb-4">
+          <div className="d-flex justify-content-end mb-2">
+            <div className="d-flex align-items-center gap-2">
+              <span className="small text-muted">Include inactive:</span>
+              <div className="form-check form-switch mb-0">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="showInactiveToggleAnalytics"
+                  checked={showInactive}
+                  onChange={(e) => {
+                    setShowInactive(e.target.checked)
+                    setTablePage(1)
+                  }}
+                />
+                <label className="form-check-label small" htmlFor="showInactiveToggleAnalytics">
+                  {showInactive ? 'Yes' : 'No'}
+                </label>
+              </div>
+            </div>
+          </div>
           <div className="card">
             <div className="card-header">
               <strong>Application lengths (days)</strong>
@@ -331,41 +393,73 @@ export default function AnalyticsPage() {
               {lengthPivot.rows.length === 0 ? (
                 <p className="text-muted mb-0 p-3">No data.</p>
               ) : (
-                <div className="table-responsive">
-                  <table className="table table-sm table-hover mb-0">
-                    <thead>
-                      <tr>
-                        <th className="text-nowrap">Application</th>
-                        {lengthPivot.columns.map((col) => (
-                          <th key={col} className="text-center">
-                            {STAGE_LABELS[col] || col}
-                          </th>
-                        ))}
-                        <th className="text-center fw-bold">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lengthPivot.rows.map((row) => (
-                        <tr key={row.key}>
-                          <td>
-                            <Link
-                              to={`/applications/${row.app_uuid}`}
-                              className="text-decoration-none"
-                            >
-                              <DisplayText>{row.company}</DisplayText> — <DisplayText>{row.role}</DisplayText>
-                            </Link>
-                          </td>
+                <>
+                  <div className="table-responsive">
+                    <table className="table table-sm table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th className="text-nowrap">Application</th>
                           {lengthPivot.columns.map((col) => (
-                            <td key={col} className="text-center">
-                              {row.daysByStage[col] ?? '—'}
-                            </td>
+                            <th key={col} className="text-center">
+                              {STAGE_LABELS[col] || col}
+                            </th>
                           ))}
-                          <td className="text-center fw-bold">{row.total}</td>
+                          <th className="text-center fw-bold">Total</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {paginatedRows.map((row) => (
+                          <tr key={row.key} style={row.hasInactiveStage ? { opacity: 0.4 } : {}}>
+                            <td>
+                              <Link
+                                to={`/applications/${row.app_uuid}`}
+                                className="text-decoration-none"
+                              >
+                                <DisplayText>{row.company}</DisplayText> — <DisplayText>{row.role}</DisplayText>
+                              </Link>
+                            </td>
+                            {lengthPivot.columns.map((col) => (
+                              <td key={col} className="text-center">
+                                {row.daysByStage[col] ?? '—'}
+                              </td>
+                            ))}
+                            <td className="text-center fw-bold">{row.total}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {filteredRows.length > 0 && (
+                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 border-top">
+                      <p className="text-muted small mb-0">
+                        {filteredRows.length} application{filteredRows.length === 1 ? '' : 's'}
+                        {!showInactive && lengthPivot.rows.length > filteredRows.length && 
+                          ` (${lengthPivot.rows.length - filteredRows.length} inactive hidden)`}
+                        {filteredRows.length > TABLE_PAGE_SIZE && ` · page ${tablePage} of ${totalTablePages}`}
+                      </p>
+                      {totalTablePages > 1 && (
+                        <div className="btn-group btn-group-sm">
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            disabled={!hasPrevPage}
+                            onClick={() => setTablePage((p) => p - 1)}
+                          >
+                            Previous
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary"
+                            disabled={!hasNextPage}
+                            onClick={() => setTablePage((p) => p + 1)}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

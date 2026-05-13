@@ -596,14 +596,27 @@ function StageDetails({ stage, allStages, onClose, onSave, onDelete, formatDate,
               </div>
               <div className="mb-2">
                 <label className="form-label small mb-0">LinkedIn profile</label>
-                <input
-                  type="url"
-                  className={`form-control form-control-sm ${useRecruiterContact || mask ? 'bg-secondary bg-opacity-10' : ''}`}
-                  value={mask ? maskText(contactLinkedin) : contactLinkedin}
-                  onChange={(e) => !mask && !useRecruiterContact && setContactLinkedin(e.target.value)}
-                  readOnly={mask || useRecruiterContact}
-                  placeholder="https://linkedin.com/in/…"
-                />
+                <div className="input-group input-group-sm">
+                  <input
+                    type="url"
+                    className={`form-control form-control-sm ${useRecruiterContact || mask ? 'bg-secondary bg-opacity-10' : ''}`}
+                    value={mask ? maskText(contactLinkedin) : contactLinkedin}
+                    onChange={(e) => !mask && !useRecruiterContact && setContactLinkedin(e.target.value)}
+                    readOnly={mask || useRecruiterContact}
+                    placeholder="https://linkedin.com/in/…"
+                  />
+                  {contactLinkedin?.trim() && !mask && (
+                    <a
+                      className="btn btn-outline-secondary"
+                      href={contactLinkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Open LinkedIn profile in new tab"
+                    >
+                      Open
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
 
