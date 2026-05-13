@@ -25,6 +25,7 @@ export default function ApplicationDetailPage() {
   const [jobSpecText, setJobSpecText] = useState('')
   const [jobSpecSaving, setJobSpecSaving] = useState(false)
   const [jobSpecError, setJobSpecError] = useState(null)
+  const [hasStages, setHasStages] = useState(false)
 
   const load = async () => {
     if (!appId) return
@@ -39,6 +40,14 @@ export default function ApplicationDetailPage() {
       setApp(data)
       setDocuments(docs)
       setAppsList(list)
+      
+      // Check if there are stages (use numeric ID from app data)
+      try {
+        const stages = await api.stages.list(data.id)
+        setHasStages(stages && stages.length > 0)
+      } catch {
+        setHasStages(false)
+      }
       if (data.recruiter) {
         try {
           const res = await api.recruiters.list({ page: 1, page_size: 100 })
@@ -67,6 +76,15 @@ export default function ApplicationDetailPage() {
     // StageList will auto-expand the latest stage for that application.
     setStageExpandedId(null)
   }, [app?.id])
+
+  useEffect(() => {
+    // Default to stages tab if there are any stages
+    if (hasStages) {
+      setProspectStagesTab('stages')
+    } else {
+      setProspectStagesTab('prospect')
+    }
+  }, [app?.id, hasStages])
 
   /** Refetch only the current application (e.g. after stage edit). No loading state, no full reload. */
   const refetchApplication = async () => {
