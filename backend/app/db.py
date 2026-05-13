@@ -124,6 +124,23 @@ def _migrate_stage_occurred_to_scheduled():
                 conn.rollback()
 
 
+def _migrate_add_feedback_column():
+    """
+    Add feedback column to application_events if missing.
+    """
+    inspector = inspect(engine)
+    if "application_events" not in inspector.get_table_names():
+        return
+
+    cols = [c["name"] for c in inspector.get_columns("application_events")]
+    if "feedback" in cols:
+        return
+
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE application_events ADD COLUMN feedback TEXT"))
+        conn.commit()
+
+
 def init_db():
     """Create all tables from current models."""
     from app.models import (  # noqa: F401
@@ -150,6 +167,7 @@ def init_db():
     _migrate_stages_to_application_events()
     Base.metadata.create_all(bind=engine)
     _migrate_stage_occurred_to_scheduled()
+    _migrate_add_feedback_column()
     _migrate_application_documents()
     _seed_prospect_questions()
     _seed_ai_prompts()

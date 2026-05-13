@@ -21,6 +21,7 @@ class Stage(Base):
         String(50), nullable=False, index=True
     )  # APPLIED, RECRUITER_CALL, STAGE_1..5, OFFER, REJECTED
     notes = Column(Text, nullable=True)
+    feedback = Column(Text, nullable=True)
     scheduled_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
     activity_type = Column(
