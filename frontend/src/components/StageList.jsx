@@ -3,18 +3,7 @@ import { api } from '../api'
 import ConfirmModal from './ConfirmModal'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
-
-const STAGE_ORDER = ['APPLIED', 'RECRUITER_CALL', ...Array.from({ length: 5 }, (_, i) => `STAGE_${i + 1}`), 'OFFER', 'REJECTED', 'NO_FEEDBACK']
-const TERMINUS_STAGES = ['OFFER', 'REJECTED', 'NO_FEEDBACK']
-
-const STAGE_LABELS = {
-  APPLIED: 'Applied',
-  RECRUITER_CALL: 'Recruiter Call',
-  ...Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`STAGE_${i + 1}`, `Stage ${i + 1}`])),
-  OFFER: 'Offer',
-  REJECTED: 'Rejected',
-  NO_FEEDBACK: 'No Feedback',
-}
+import { STAGE_ORDER, TERMINUS_STAGES, STAGE_LABELS } from '../constants/stages'
 
 const ACTIVITY_TYPES = [
   { value: '', label: '—' },

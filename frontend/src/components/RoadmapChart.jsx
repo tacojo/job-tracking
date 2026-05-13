@@ -14,10 +14,11 @@ import {
 import { api } from '../api'
 import DisplayText from './DisplayText'
 import { useDisplayText } from '../hooks/useDisplayText'
+import { TERMINUS_STAGES } from '../constants/stages'
 
 const DAYS_BEFORE = 10
 const DAYS_AFTER = 20
-const TERMINUS_STAGES = new Set(['OFFER', 'REJECTED', 'NO_FEEDBACK'])
+const TERMINUS_STAGES_SET = new Set(TERMINUS_STAGES)
 
 function getStageColor(stageType) {
   if (stageType === 'OFFER') return '#198754'
@@ -70,7 +71,7 @@ function RoadmapChartInner({ timeline }) {
         const startMs = new Date(stage.start).getTime()
         const nextStage = stages[j + 1]
         const isLast = !nextStage
-        const isTerminus = TERMINUS_STAGES.has(stage.stage_type)
+        const isTerminus = TERMINUS_STAGES_SET.has(stage.stage_type)
         let endMs
         if (nextStage) {
           endMs = new Date(nextStage.start).getTime()

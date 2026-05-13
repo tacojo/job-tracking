@@ -7,6 +7,7 @@ import DisplayText from '../components/DisplayText'
 import PageMessage from '../components/PageMessage'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
+import { STAGE_LABELS } from '../constants/stages'
 
 function formatNoteDate(ts) {
   if (!ts) return ''
@@ -101,14 +102,6 @@ export default function CompanyDetailPage() {
   const formatDate = (d) =>
     d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
 
-  const STAGE_LABELS = {
-    APPLIED: 'Applied',
-    RECRUITER_CALL: 'Recruiter call',
-    ...Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`STAGE_${i + 1}`, `Stage ${i + 1}`])),
-    OFFER: 'Offer',
-    REJECTED: 'Rejected',
-    NO_FEEDBACK: 'No feedback',
-  }
   const sortedApplications = [...applications].sort((a, b) => {
     const aDate = a.latest_stage_at ? new Date(a.latest_stage_at) : new Date(a.updated_at || 0)
     const bDate = b.latest_stage_at ? new Date(b.latest_stage_at) : new Date(b.updated_at || 0)

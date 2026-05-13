@@ -17,18 +17,9 @@ import {
 import { api } from '../api'
 import DisplayText from '../components/DisplayText'
 import PageMessage from '../components/PageMessage'
+import { STAGE_LABELS, STAGE_ORDER, TERMINUS_STAGES } from '../constants/stages'
 
-const STAGE_LABELS = {
-  APPLIED: 'Applied',
-  RECRUITER_CALL: 'Recruiter Call',
-  ...Object.fromEntries(Array.from({ length: 5 }, (_, i) => [`STAGE_${i + 1}`, `Stage ${i + 1}`])),
-  OFFER: 'Offer',
-  REJECTED: 'Rejected',
-  NO_FEEDBACK: 'No Feedback',
-}
-
-const STAGE_ORDER = ['APPLIED', 'RECRUITER_CALL', ...Array.from({ length: 5 }, (_, i) => `STAGE_${i + 1}`), 'OFFER', 'REJECTED', 'NO_FEEDBACK']
-const TERMINUS_STAGES = new Set(['OFFER', 'REJECTED', 'NO_FEEDBACK'])
+const TERMINUS_STAGES_SET = new Set(TERMINUS_STAGES)
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -49,7 +40,7 @@ function buildLengthPivot(timeline) {
       const startMs = new Date(stage.start).getTime()
       const startDay = toDayIndex(startMs)
       const isLastStage = !stages[j + 1]
-      const isTerminus = TERMINUS_STAGES.has(stage.stage_type)
+      const isTerminus = TERMINUS_STAGES_SET.has(stage.stage_type)
       const endDay = stages[j + 1]
         ? toDayIndex(new Date(stages[j + 1].start).getTime())
         : isLastStage && isTerminus

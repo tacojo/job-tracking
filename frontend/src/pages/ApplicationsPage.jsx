@@ -6,24 +6,7 @@ import DisplayText from '../components/DisplayText'
 import ErrorBoundary from '../components/ErrorBoundary'
 import PageMessage from '../components/PageMessage'
 import RoadmapChart from '../components/RoadmapChart'
-
-const STAGE_TYPES = [
-  { value: '', label: 'All stages' },
-  { value: 'APPLIED', label: 'Applied' },
-  { value: 'RECRUITER_CALL', label: 'Recruiter Call' },
-  ...Array.from({ length: 5 }, (_, i) => ({ value: `STAGE_${i + 1}`, label: `Stage ${i + 1}` })),
-  { value: 'OFFER', label: 'Offer' },
-  { value: 'REJECTED', label: 'Rejected' },
-  { value: 'NO_FEEDBACK', label: 'No Feedback' },
-]
-
-const STAGE_LABELS = Object.fromEntries(STAGE_TYPES.filter((s) => s.value).map((s) => [s.value, s.label]))
-
-const ACTIVITY_LABELS = {
-  call: 'call',
-  hometest: 'home test',
-  pair_programming: 'pair programming',
-}
+import { STAGE_TYPES, STAGE_LABELS, ACTIVITY_LABELS, INACTIVE_STAGES } from '../constants/stages'
 
 const TABLE_PAGE_SIZE = 10
 const STAGE_FILTER_MODES = {
@@ -56,6 +39,7 @@ export default function ApplicationsPage() {
   const [sortField, setSortField] = useState('latest_stage_at')
   const [sortAsc, setSortAsc] = useState(false)
   const [tablePage, setTablePage] = useState(1)
+  const [showInactive, setShowInactive] = useState(false)
 
   const load = async (filterOverride) => {
     const f = filterOverride !== undefined ? filterOverride : filters
@@ -95,7 +79,13 @@ export default function ApplicationsPage() {
     setTablePage(1)
   }
 
-  const sortedApps = [...applications].sort((a, b) => {
+  const isActiveApplication = (app) => {
+    return !app.latest_stage_type || !INACTIVE_STAGES.includes(app.latest_stage_type)
+  }
+
+  const filteredApps = showInactive ? applications : applications.filter(isActiveApplication)
+
+  const sortedApps = [...filteredApps].sort((a, b) => {
     let aVal = a[sortField]
     let bVal = b[sortField]
     if (sortField === 'latest_stage_type') {
@@ -142,44 +132,57 @@ export default function ApplicationsPage() {
     return new Date(app.latest_stage_at).getTime() > Date.now()
   }
 
-  const ApplicationsTableRow = ({ app }) => (
-    <tr className={isFutureLatestStage(app) ? 'table-success' : undefined}>
-      <td>
-        <Link to={getDetailPath(app)} className="text-decoration-none fw-medium">
-          <DisplayText>{app.company}</DisplayText>
-        </Link>
-      </td>
-      <td>
-        <Link to={getDetailPath(app)} className="text-decoration-none">
-          <DisplayText>{app.role}</DisplayText>
-        </Link>
-      </td>
-      <td>{app.recruiter ? <DisplayText>{app.recruiter}</DisplayText> : '—'}</td>
-      <td>
-          {app.latest_stage_type ? (
-            <span title={app.latest_stage_at ? formatDateAndTime(app.latest_stage_at) : ''}>
-              {STAGE_LABELS[app.latest_stage_type] || app.latest_stage_type}
-              {app.latest_stage_activity_type &&
-                /^STAGE_\d+$/.test(app.latest_stage_type) && (
-                  <span className="text-muted">
-                    {' — '}
-                    {ACTIVITY_LABELS[app.latest_stage_activity_type] ||
-                      app.latest_stage_activity_type}
+  const ApplicationsTableRow = ({ app }) => {
+    const isActive = isActiveApplication(app)
+    const isFuture = isFutureLatestStage(app)
+    const rowClasses = [
+      isActive ? 'table-success' : '',
+      isFuture ? 'fw-bold' : ''
+    ].filter(Boolean).join(' ')
+    
+    const companyLinkClasses = isFuture 
+      ? 'text-decoration-none fw-bold' 
+      : 'text-decoration-none fw-medium'
+    
+    return (
+      <tr className={rowClasses || undefined}>
+        <td>
+          <Link to={getDetailPath(app)} className={companyLinkClasses}>
+            <DisplayText>{app.company}</DisplayText>
+          </Link>
+        </td>
+        <td>
+          <Link to={getDetailPath(app)} className="text-decoration-none">
+            <DisplayText>{app.role}</DisplayText>
+          </Link>
+        </td>
+        <td>{app.recruiter ? <DisplayText>{app.recruiter}</DisplayText> : '—'}</td>
+        <td>
+            {app.latest_stage_type ? (
+              <span title={app.latest_stage_at ? formatDateAndTime(app.latest_stage_at) : ''}>
+                {STAGE_LABELS[app.latest_stage_type] || app.latest_stage_type}
+                {app.latest_stage_activity_type &&
+                  /^STAGE_\d+$/.test(app.latest_stage_type) && (
+                    <span className="text-muted">
+                      {' — '}
+                      {ACTIVITY_LABELS[app.latest_stage_activity_type] ||
+                        app.latest_stage_activity_type}
+                    </span>
+                  )}
+                {app.latest_stage_at && (
+                  <span className="text-muted small ms-1">
+                    ({formatDateAndTime(app.latest_stage_at)})
                   </span>
                 )}
-              {app.latest_stage_at && (
-                <span className="text-muted small ms-1">
-                  ({formatDateAndTime(app.latest_stage_at)})
-                </span>
-              )}
-            </span>
-          ) : (
-            '—'
-          )}
-      </td>
-      <td>{formatDate(app.updated_at)}</td>
-    </tr>
-  )
+              </span>
+            ) : (
+              '—'
+            )}
+        </td>
+        <td>{formatDate(app.updated_at)}</td>
+      </tr>
+    )
+  }
 
   if (loading && applications.length === 0) return <PageMessage variant="loading">Loading…</PageMessage>
   if (error) return <PageMessage variant="danger" title="Error">{error}</PageMessage>
@@ -230,29 +233,49 @@ export default function ApplicationsPage() {
         <div className="card-body">
           <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
             <h6 className="card-title mb-0">Filter</h6>
-            <div className="d-flex align-items-center gap-2">
-              <span className="small text-muted">Is latest status?</span>
-              <div className="form-check form-check-inline mb-0">
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name="stageFilterMode"
-                  id="stageFilterLatestYes"
-                  checked={filters.stageMode === STAGE_FILTER_MODES.latest}
-                  onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.latest }))}
-                />
-                <label className="form-check-label small" htmlFor="stageFilterLatestYes">Yes</label>
+            <div className="d-flex align-items-center gap-3">
+              <div className="d-flex align-items-center gap-2">
+                <span className="small text-muted">Is latest status?</span>
+                <div className="form-check form-check-inline mb-0">
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="stageFilterMode"
+                    id="stageFilterLatestYes"
+                    checked={filters.stageMode === STAGE_FILTER_MODES.latest}
+                    onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.latest }))}
+                  />
+                  <label className="form-check-label small" htmlFor="stageFilterLatestYes">Yes</label>
+                </div>
+                <div className="form-check form-check-inline mb-0">
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    name="stageFilterMode"
+                    id="stageFilterLatestNo"
+                    checked={filters.stageMode === STAGE_FILTER_MODES.ever}
+                    onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.ever }))}
+                  />
+                  <label className="form-check-label small" htmlFor="stageFilterLatestNo">No</label>
+                </div>
               </div>
-              <div className="form-check form-check-inline mb-0">
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name="stageFilterMode"
-                  id="stageFilterLatestNo"
-                  checked={filters.stageMode === STAGE_FILTER_MODES.ever}
-                  onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.ever }))}
-                />
-                <label className="form-check-label small" htmlFor="stageFilterLatestNo">No</label>
+              <div className="d-flex align-items-center gap-2">
+                <span className="small text-muted">Include inactive:</span>
+                <div className="form-check form-switch mb-0">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    id="showInactiveToggle"
+                    checked={showInactive}
+                    onChange={(e) => {
+                      setShowInactive(e.target.checked)
+                      setTablePage(1)
+                    }}
+                  />
+                  <label className="form-check-label small" htmlFor="showInactiveToggle">
+                    {showInactive ? 'Yes' : 'No'}
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -386,11 +409,13 @@ export default function ApplicationsPage() {
         </table>
       </div>
 
-      {applications.length > 0 && (
+      {filteredApps.length > 0 && (
         <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2">
           <p className="text-muted small mb-0">
-            {applications.length} application{applications.length === 1 ? '' : 's'}
-            {applications.length > TABLE_PAGE_SIZE && ` · page ${tablePage} of ${totalTablePages}`}
+            {filteredApps.length} application{filteredApps.length === 1 ? '' : 's'}
+            {!showInactive && applications.length > filteredApps.length && 
+              ` (${applications.length - filteredApps.length} inactive hidden)`}
+            {filteredApps.length > TABLE_PAGE_SIZE && ` · page ${tablePage} of ${totalTablePages}`}
           </p>
           {totalTablePages > 1 && (
             <div className="btn-group btn-group-sm">
@@ -415,8 +440,12 @@ export default function ApplicationsPage() {
         </div>
       )}
 
-      {applications.length === 0 && (
+      {filteredApps.length === 0 && applications.length === 0 && (
         <p className="text-muted mb-0">No applications yet. Add one to get started.</p>
+      )}
+      
+      {filteredApps.length === 0 && applications.length > 0 && (
+        <p className="text-muted mb-0">No active applications. Toggle "Include inactive" to see rejected/no feedback applications.</p>
       )}
         </>
       )}
