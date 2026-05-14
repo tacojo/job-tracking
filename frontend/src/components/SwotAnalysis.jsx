@@ -53,7 +53,13 @@ export default function SwotAnalysis({ appId }) {
     const isUpdating = savedAnalysis !== null
     
     try {
-      const saved = await api.applications.prospect.saveSwotAnalysis(appId, swotData)
+      const { strengths, weaknesses, opportunities, threats } = swotData
+      const saved = await api.applications.prospect.saveSwotAnalysis(appId, {
+        strengths,
+        weaknesses,
+        opportunities,
+        threats,
+      })
       setSavedAnalysis(saved)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -97,7 +103,8 @@ export default function SwotAnalysis({ appId }) {
       <div className="text-center py-5">
         <h5 className="mb-3">SWOT Analysis</h5>
         <p className="text-muted mb-4">
-          Generate a comprehensive SWOT analysis comparing your CV against the job specification.
+          Generate a comprehensive SWOT analysis comparing your CV and portfolio projects against the job
+          specification.
         </p>
         <button
           className="btn btn-primary btn-lg"
@@ -107,7 +114,8 @@ export default function SwotAnalysis({ appId }) {
         </button>
         <div className="mt-4">
           <small className="text-muted">
-            <strong>Note:</strong> This will analyze your CV profile against the job description using AI.
+            <strong>Note:</strong> This uses your CV profile, project write-ups from My CVs → Projects, and the
+            job description.
             {!checkedForSaved && <span> Checking for previously saved analysis...</span>}
           </small>
         </div>
@@ -195,7 +203,7 @@ export default function SwotAnalysis({ appId }) {
         <div>
           <h5 className="mb-1">SWOT Analysis</h5>
           <p className="text-muted small mb-0">
-            Comparing your CV against the job specification
+            Comparing your CV, portfolio projects, and the job specification
             {savedAnalysis && (
               <span className="badge bg-success ms-2">
                 Saved {new Date(savedAnalysis.updated_at).toLocaleDateString()}
@@ -248,6 +256,21 @@ export default function SwotAnalysis({ appId }) {
           Click the search term badges under weaknesses to find relevant articles and advice on Google.
           {savedAnalysis && (
             <> Clicking "Update" will replace your previously saved analysis with the current one.</>
+          )}
+          {(swotData.model ||
+            swotData.input_tokens != null ||
+            swotData.output_tokens != null) && (
+            <>
+              {' '}
+              <span className="d-block mt-2">
+                Model: {swotData.model ?? '—'}. Input tokens:{' '}
+                {swotData.input_tokens != null ? swotData.input_tokens : '—'}. Output tokens:{' '}
+                {swotData.output_tokens != null ? swotData.output_tokens : '—'}
+                {swotData.input_tokens != null &&
+                  swotData.output_tokens != null &&
+                  '. These totals include every completion call used for this run (including any repair step).'}
+              </span>
+            </>
           )}
         </small>
       </div>

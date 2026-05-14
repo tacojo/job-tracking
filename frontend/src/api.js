@@ -446,6 +446,31 @@ export const api = {
       }).then(handleResponse),
   },
 
+  projects: {
+    list: () =>
+      fetch(`${BASE}/api/projects`, { credentials: 'include', headers: getAuthHeaders() }).then(handleResponse),
+    create: (data) =>
+      fetch(`${BASE}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+    update: (id, data) =>
+      fetch(`${BASE}/api/projects/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+    delete: (id) =>
+      fetch(`${BASE}/api/projects/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
+  },
+
   settings: {
     ai: {
       get: () =>

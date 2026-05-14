@@ -157,6 +157,7 @@ def init_db():
         cv_profile,
         cv_version,
         job_description,
+        project,
         prospect_question,
         recruiter,
         recruiter_note,

@@ -138,9 +138,11 @@ export default function CVProfileSection({ cvs, onParsed }) {
 
   return (
     <div className="cv-profile-section">
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h2 className="h5 mb-0">CV Profile (source of truth)</h2>
-        <div className="d-flex gap-2 flex-wrap">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 flex-lg-nowrap cvs-page-section-header">
+        <h2 id="cv-profile-heading" className="h5 mb-0 me-2">
+          CV Profile (source of truth)
+        </h2>
+        <div className="d-flex gap-2 flex-wrap justify-content-end flex-grow-1">
           {docxCvs.length > 0 && (
             <div className="d-flex gap-1">
               <select
@@ -157,7 +159,8 @@ export default function CVProfileSection({ cvs, onParsed }) {
                 ))}
               </select>
               <button
-                className="btn btn-sm btn-outline-secondary"
+                className="btn btn-sm btn-forest"
+                type="button"
                 onClick={() => {
                   const sel = document.getElementById('parse-cv-select')
                   const v = sel?.value
@@ -170,7 +173,8 @@ export default function CVProfileSection({ cvs, onParsed }) {
             </div>
           )}
           <button
-            className="btn btn-sm btn-outline-primary"
+            className="btn btn-sm btn-forest"
+            type="button"
             onClick={() => handleExport('docx')}
             disabled={!!exporting}
           >
@@ -188,7 +192,8 @@ export default function CVProfileSection({ cvs, onParsed }) {
               ))}
             </select>
             <button
-              className="btn btn-sm btn-outline-primary"
+              className="btn btn-sm btn-forest"
+              type="button"
               onClick={() => handleExport('pdf')}
               disabled={!!exporting}
             >
@@ -196,7 +201,8 @@ export default function CVProfileSection({ cvs, onParsed }) {
             </button>
           </div>
           <button
-            className="btn btn-sm btn-outline-secondary"
+            className="btn btn-sm btn-forest"
+            type="button"
             onClick={async () => {
               try {
                 const data = await api.cvProfile.exportJson()
@@ -249,10 +255,14 @@ export default function CVProfileSection({ cvs, onParsed }) {
                         value={profile.summary}
                         onChange={(e) => setProfile((p) => ({ ...p, summary: e.target.value }))}
                       />
-                      <button className="btn btn-sm btn-primary mt-1" onClick={handleSaveProfile}>
+                      <button className="btn btn-sm btn-forest mt-1 me-1" type="button" onClick={handleSaveProfile}>
                         Save
                       </button>
-                      <button className="btn btn-sm btn-outline-secondary ms-1" onClick={() => setEditProfile(false)}>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary mt-1"
+                        onClick={() => setEditProfile(false)}
+                      >
                         Cancel
                       </button>
                     </div>
@@ -274,7 +284,7 @@ export default function CVProfileSection({ cvs, onParsed }) {
           {/* Experience table */}
           <div className="d-flex justify-content-between align-items-center mb-2">
             <h6 className="mb-0">Experience (chronological)</h6>
-            <button className="btn btn-sm btn-outline-primary" onClick={handleAddExperience}>
+            <button className="btn btn-sm btn-forest" type="button" onClick={handleAddExperience}>
               + Add role
             </button>
           </div>
@@ -454,10 +464,10 @@ function ExperienceEditRow({ exp, onSave, onCancel }) {
           />
         </div>
         <div className="col-12">
-          <button className="btn btn-sm btn-primary" onClick={handleSave}>
+          <button className="btn btn-sm btn-forest me-1" type="button" onClick={handleSave}>
             Save
           </button>
-          <button className="btn btn-sm btn-outline-secondary ms-1" onClick={onCancel}>
+          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onCancel}>
             Cancel
           </button>
         </div>

@@ -11,6 +11,7 @@ from app.models.cv_experience import CvExperience
 from app.models.cv_profile import CvProfile
 from app.models.cv_version import CVVersion
 from app.models.job_description import JobDescription
+from app.models.project import Project
 from app.models.prospect_question import ProspectQuestion
 from app.models.recruiter import Recruiter
 from app.models.recruiter_note import RecruiterNote
@@ -32,6 +33,7 @@ __all__ = [
     "CvProfile",
     "CVVersion",
     "JobDescription",
+    "Project",
     "ProspectQuestion",
     "Recruiter",
     "RecruiterNote",
