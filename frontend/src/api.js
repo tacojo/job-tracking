@@ -228,6 +228,24 @@ export const api = {
           credentials: 'include',
           body: JSON.stringify(data),
         }).then(handleResponse),
+      swotAnalysis: (appId) =>
+        fetch(`${BASE}/api/applications/${appId}/prospect/swot-analysis`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: getAuthHeaders(),
+        }).then(handleResponse),
+      saveSwotAnalysis: (appId, data) =>
+        fetch(`${BASE}/api/applications/${appId}/prospect/swot-analysis/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          credentials: 'include',
+          body: JSON.stringify(data),
+        }).then(handleResponse),
+      getSavedSwotAnalysis: (appId) =>
+        fetch(`${BASE}/api/applications/${appId}/prospect/swot-analysis/saved`, {
+          credentials: 'include',
+          headers: getAuthHeaders(),
+        }).then(handleResponse),
     },
 
     documents: {

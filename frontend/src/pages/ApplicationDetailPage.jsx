@@ -7,6 +7,7 @@ import ApplicationProspectTab from '../components/ApplicationProspectTab'
 import ConfirmModal from '../components/ConfirmModal'
 import PageMessage from '../components/PageMessage'
 import StageList from '../components/StageList'
+import SwotAnalysis from '../components/SwotAnalysis'
 import { useDisplayText } from '../hooks/useDisplayText'
 
 export default function ApplicationDetailPage() {
@@ -20,7 +21,7 @@ export default function ApplicationDetailPage() {
   const [error, setError] = useState(null)
   const [stageExpandedId, setStageExpandedId] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [prospectStagesTab, setProspectStagesTab] = useState('prospect') // 'prospect' | 'stages'
+  const [prospectStagesTab, setProspectStagesTab] = useState('prospect') // 'prospect' | 'stages' | 'swot'
   const [showJobSpecModal, setShowJobSpecModal] = useState(false)
   const [jobSpecText, setJobSpecText] = useState('')
   const [jobSpecSaving, setJobSpecSaving] = useState(false)
@@ -222,6 +223,15 @@ export default function ApplicationDetailPage() {
                 Stages
               </button>
             </li>
+            <li className="nav-item">
+              <button
+                type="button"
+                className={`nav-link ${prospectStagesTab === 'swot' ? 'active' : ''}`}
+                onClick={() => setProspectStagesTab('swot')}
+              >
+                SWOT Analysis
+              </button>
+            </li>
           </ul>
         </div>
         <div className="card-body">
@@ -234,7 +244,7 @@ export default function ApplicationDetailPage() {
               documents={documents}
               onDocumentsRefresh={() => api.applications.documents.list(appId).then(setDocuments)}
             />
-          ) : (
+          ) : prospectStagesTab === 'stages' ? (
             <StageList
               applicationId={app.id}
               onUpdate={refetchApplication}
@@ -243,6 +253,8 @@ export default function ApplicationDetailPage() {
               recruiterName={app.recruiter}
               recruiterLink={recruiterLink}
             />
+          ) : (
+            <SwotAnalysis appId={app.uuid} />
           )}
         </div>
       </div>

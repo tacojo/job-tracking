@@ -3,6 +3,7 @@ from app.models.application import Application
 from app.models.application_document import ApplicationDocument
 from app.models.application_note import ApplicationNote
 from app.models.application_prospect_answer import ApplicationProspectAnswer
+from app.models.application_swot_analysis import ApplicationSwotAnalysis
 from app.models.company import Company
 from app.models.company_note import CompanyNote
 from app.models.cover_letter_version import CoverLetterVersion
@@ -23,6 +24,7 @@ __all__ = [
     "ApplicationDocument",
     "ApplicationNote",
     "ApplicationProspectAnswer",
+    "ApplicationSwotAnalysis",
     "Company",
     "CompanyNote",
     "CoverLetterVersion",

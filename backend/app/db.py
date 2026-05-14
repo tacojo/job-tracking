@@ -149,6 +149,7 @@ def init_db():
         application_document,
         application_note,
         application_prospect_answer,
+        application_swot_analysis,
         company,
         company_note,
         cover_letter_version,
@@ -198,14 +199,15 @@ def _seed_ai_prompts():
 
     defaults = {
         "tailor_cv": (
-            "You are a professional career advisor. "
+            "You are a professional career adviser. Use British English spelling and terminology. "
             "You are requested to tailor the candidate's CV to the job and company. "
             "Keep the same facts and experience; rephrase and reorder for relevance. "
-            "Do not exaggerate, do not add skills they do not have, or change dates or job titles."
+            "Do not exaggerate, do not add skills they do not have, or change dates or job titles. "
             "Output only the tailored CV text (no preamble)."
         ),
         "tailor_cover_letter": (
-            "You are a professional career advisor. Tailor the candidate's cover letter to the job and company. "
+            "You are a professional career adviser. Use British English spelling and terminology. "
+            "Tailor the candidate's cover letter to the job and company. "
             "Keep the same experience and tone; adjust wording and emphasis for relevance. Do not exaggerate. "
             "Output only the tailored cover letter text (no preamble)."
         ),

@@ -1,5 +1,6 @@
 """Application prospect API: prospect tab (tailor CV/cover letter, Q&A) per application."""
 
+from datetime import datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +14,7 @@ from app.models import (
     Application,
     ApplicationDocument,
     ApplicationProspectAnswer,
+    ApplicationSwotAnalysis,
     CvExperience,
     CvProfile,
     JobDescription,
@@ -81,6 +83,35 @@ class SaveDocxRequest(BaseModel):
 
 class JobSpecRequest(BaseModel):
     text: str
+
+
+class SwotAnalysisResponse(BaseModel):
+    strengths: List[str]
+    weaknesses: List[
+        dict
+    ]  # Each weakness will have 'text' and 'search_terms' (list of phrases to Google)
+    opportunities: List[str]
+    threats: List[str]
+
+
+class SaveSwotAnalysisRequest(BaseModel):
+    strengths: List[str]
+    weaknesses: List[dict]
+    opportunities: List[str]
+    threats: List[str]
+
+
+class SavedSwotAnalysisResponse(BaseModel):
+    id: int
+    strengths: List[str]
+    weaknesses: List[dict]
+    opportunities: List[str]
+    threats: List[str]
+    created_at: str
+    updated_at: str
+
+    class Config:
+        from_attributes = True
 
 
 @router.get("/{app_id}/prospect/answers", response_model=List[ProspectAnswerRead])
@@ -403,3 +434,308 @@ def set_job_spec_from_text(
     db.commit()
     db.refresh(doc)
     return ApplicationDocumentRead.model_validate(doc)
+
+
+@router.post("/{app_id}/prospect/swot-analysis", response_model=SwotAnalysisResponse)
+def generate_swot_analysis(
+    app_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a SWOT analysis comparing the user's CV against the job specification."""
+    app = (
+        db.query(Application)
+        .options(
+            joinedload(Application.company_rel),
+            joinedload(Application.job_description),
+        )
+        .filter(Application.id == _resolve_app(db, app_id, current_user.id).id)
+        .first()
+    )
+
+    if not app:
+        raise HTTPException(
+            status_code=404,
+            detail="Application not found.",
+        )
+
+    # Get job spec
+    job_spec = (app.job_description.text if app.job_description else None) or ""
+    job_spec = (job_spec or "").strip()
+
+    if not job_spec:
+        # Try to get from JD document
+        jd_doc = (
+            db.query(ApplicationDocument)
+            .filter(
+                ApplicationDocument.application_id == app.id,
+                ApplicationDocument.doc_type == "jd",
+            )
+            .order_by(ApplicationDocument.version.desc())
+            .first()
+        )
+        if jd_doc:
+            content = app_document_storage.read_document(jd_doc.storage_path)
+            job_spec = (extract_text(content, jd_doc.format or "") or "").strip()
+
+    if not job_spec:
+        raise HTTPException(
+            status_code=400,
+            detail="Job description not available. Please add a job description first.",
+        )
+
+    # Get CV content
+    profile_data, experiences = _get_profile_and_experiences(db, current_user.id)
+    cv_text = cv_experiences_to_text(profile_data, experiences)
+    if not cv_text or cv_text == "(No CV content)":
+        raise HTTPException(
+            status_code=400,
+            detail="CV content not available. Please add your CV experiences first.",
+        )
+
+    # Create SWOT analysis prompt
+    system_prompt = (
+        "You are a professional career adviser conducting a detailed SWOT analysis. "
+        "Use British English spelling and terminology throughout your response. "
+        "Analyse the candidate's CV against the job specification thoroughly and respond with a JSON object. "
+        "The JSON must have exactly four keys: strengths, weaknesses, opportunities, threats. "
+        "- strengths: array of 4-5 strings highlighting strong matches between CV and job requirements\n"
+        "- weaknesses: array of 3-5 objects, each with 'text' (the weakness) and 'search_terms' (array of 2-3 specific Google search phrases)\n"
+        "- opportunities: array of 3-5 strings about growth potential and advantages\n"
+        "- threats: array of 3-5 strings about potential challenges or concerns\n\n"
+        "Be thorough - examine skills, experience, tools, domain knowledge, leadership, technical depth, etc. "
+        "For weaknesses, provide specific Google search phrases (not URLs) that will help find articles about addressing that weakness. "
+        "Search phrases should be specific and actionable, like 'how to explain short job tenure in interview' or 'transitioning to new industry tips'."
+    )
+
+    user_content = (
+        "Generate a comprehensive SWOT analysis comparing this CV with the job requirements.\n\n"
+        f"Job Specification:\n{job_spec}\n\n---\n\nCandidate's CV:\n{cv_text}\n\n"
+        "Example format for weaknesses:\n"
+        '{"text": "Limited experience in domain X", "search_terms": ['
+        '"how to explain limited domain experience interview", "learning domain X quickly", "addressing experience gaps interview"]}\n\n'
+        "Respond with a JSON object only, no markdown or extra text."
+    )
+
+    # Call OpenAI with JSON mode
+    import json
+    import re
+
+    from openai import OpenAI
+
+    from app.config import settings
+
+    if not settings.openai_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="OpenAI API key is not configured. Set OPENAI_API_KEY in .env to use AI analysis.",
+        )
+
+    client = OpenAI(api_key=settings.openai_api_key)
+
+    try:
+        # Use JSON mode for reliable JSON output
+        response = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            response_format={"type": "json_object"},
+            max_tokens=3000,
+        )
+        response_text = (response.choices[0].message.content or "").strip()
+
+        # Parse the JSON response
+        swot_data = json.loads(response_text)
+
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse JSON response: {str(e)}. Response was: {response_text[:500]}",
+        )
+    except Exception as e:
+        # If JSON mode fails, try without it
+        error_msg = str(e)
+        if "json_object" in error_msg.lower():
+            # JSON mode not supported, try regular mode with explicit instructions
+            try:
+                response = client.chat.completions.create(
+                    model=settings.openai_model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": system_prompt
+                            + " OUTPUT ONLY VALID JSON, NO MARKDOWN OR OTHER TEXT.",
+                        },
+                        {"role": "user", "content": user_content},
+                    ],
+                    max_tokens=3000,
+                )
+                response_text = (response.choices[0].message.content or "").strip()
+
+                # Try to extract JSON from markdown code blocks
+                json_match = re.search(
+                    r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", response_text
+                )
+                if json_match:
+                    response_text = json_match.group(1)
+                else:
+                    # Try to find any JSON object
+                    json_match = re.search(r"\{[\s\S]*\}", response_text)
+                    if json_match:
+                        response_text = json_match.group(0)
+
+                swot_data = json.loads(response_text)
+            except Exception as inner_e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"OpenAI API error: {str(inner_e)}. Response: {response_text[:500]}",
+                )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"OpenAI API error: {error_msg}",
+            )
+
+    # Validate the structure
+    required_keys = ["strengths", "weaknesses", "opportunities", "threats"]
+    for key in required_keys:
+        if key not in swot_data:
+            # Try alternative capitalization
+            alt_key = key.capitalize()
+            if alt_key in swot_data:
+                swot_data[key] = swot_data[alt_key]
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Missing required field '{key}' in SWOT analysis. Got keys: {list(swot_data.keys())}",
+                )
+        if not isinstance(swot_data[key], list):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Field '{key}' must be a list, got {type(swot_data[key])}.",
+            )
+
+    # Validate weaknesses structure (should be list of dicts with 'text' and 'search_terms')
+    weaknesses = swot_data.get("weaknesses", [])
+    for idx, weakness in enumerate(weaknesses):
+        if isinstance(weakness, str):
+            # Convert old string format to new dict format
+            weaknesses[idx] = {"text": weakness, "search_terms": []}
+        elif isinstance(weakness, dict):
+            if "text" not in weakness:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Weakness {idx} missing 'text' field.",
+                )
+            # Handle both old 'resources' and new 'search_terms' keys
+            if "search_terms" not in weakness:
+                if "resources" in weakness:
+                    # Convert old resources to search terms if present
+                    weakness["search_terms"] = weakness.pop("resources", [])
+                else:
+                    weakness["search_terms"] = []
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Weakness {idx} must be a string or dict.",
+            )
+
+    return SwotAnalysisResponse(
+        strengths=swot_data.get("strengths", []),
+        weaknesses=weaknesses,
+        opportunities=swot_data.get("opportunities", []),
+        threats=swot_data.get("threats", []),
+    )
+
+
+@router.post(
+    "/{app_id}/prospect/swot-analysis/save", response_model=SavedSwotAnalysisResponse
+)
+def save_swot_analysis(
+    app_id: str,
+    data: SaveSwotAnalysisRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save/preserve a SWOT analysis for an application."""
+    import json
+
+    app = _resolve_app(db, app_id, current_user.id)
+
+    # Check if analysis already exists for this application
+    existing = (
+        db.query(ApplicationSwotAnalysis)
+        .filter(ApplicationSwotAnalysis.application_id == app.id)
+        .first()
+    )
+
+    if existing:
+        # Update existing analysis
+        existing.strengths = json.dumps(data.strengths)
+        existing.weaknesses = json.dumps(data.weaknesses)
+        existing.opportunities = json.dumps(data.opportunities)
+        existing.threats = json.dumps(data.threats)
+        existing.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing)
+        saved_analysis = existing
+    else:
+        # Create new analysis
+        saved_analysis = ApplicationSwotAnalysis(
+            application_id=app.id,
+            strengths=json.dumps(data.strengths),
+            weaknesses=json.dumps(data.weaknesses),
+            opportunities=json.dumps(data.opportunities),
+            threats=json.dumps(data.threats),
+        )
+        db.add(saved_analysis)
+        db.commit()
+        db.refresh(saved_analysis)
+
+    return SavedSwotAnalysisResponse(
+        id=saved_analysis.id,
+        strengths=json.loads(saved_analysis.strengths),
+        weaknesses=json.loads(saved_analysis.weaknesses),
+        opportunities=json.loads(saved_analysis.opportunities),
+        threats=json.loads(saved_analysis.threats),
+        created_at=saved_analysis.created_at.isoformat(),
+        updated_at=saved_analysis.updated_at.isoformat(),
+    )
+
+
+@router.get(
+    "/{app_id}/prospect/swot-analysis/saved", response_model=SavedSwotAnalysisResponse
+)
+def get_saved_swot_analysis(
+    app_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get the saved/preserved SWOT analysis for an application."""
+    import json
+
+    app = _resolve_app(db, app_id, current_user.id)
+
+    saved_analysis = (
+        db.query(ApplicationSwotAnalysis)
+        .filter(ApplicationSwotAnalysis.application_id == app.id)
+        .first()
+    )
+
+    if not saved_analysis:
+        raise HTTPException(
+            status_code=404,
+            detail="No saved SWOT analysis found for this application.",
+        )
+
+    return SavedSwotAnalysisResponse(
+        id=saved_analysis.id,
+        strengths=json.loads(saved_analysis.strengths),
+        weaknesses=json.loads(saved_analysis.weaknesses),
+        opportunities=json.loads(saved_analysis.opportunities),
+        threats=json.loads(saved_analysis.threats),
+        created_at=saved_analysis.created_at.isoformat(),
+        updated_at=saved_analysis.updated_at.isoformat(),
+    )
