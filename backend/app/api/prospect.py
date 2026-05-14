@@ -16,14 +16,15 @@ from app.services.text_extract import extract_text
 router = APIRouter(prefix="/api/prospect", tags=["prospect"])
 
 DEFAULT_TAILOR_CV = (
-    "You are a professional career advisor. "
+    "You are a professional career adviser. Use British English spelling and terminology. "
     "You are requested to tailor the candidate's CV to the job and company. "
     "Keep the same facts and experience; rephrase and reorder for relevance. "
-    "Do not exaggerate, do not add skills they do not have, or change dates or job titles."
+    "Do not exaggerate, do not add skills they do not have, or change dates or job titles. "
     "Output only the tailored CV text (no preamble)."
 )
 DEFAULT_TAILOR_COVER_LETTER = (
-    "You are a professional career advisor. Tailor the candidate's cover letter to the job and company. "
+    "You are a professional career adviser. Use British English spelling and terminology. "
+    "Tailor the candidate's cover letter to the job and company. "
     "Keep the same experience and tone; adjust wording and emphasis for relevance. Do not exaggerate. "
     "Output only the tailored cover letter text (no preamble)."
 )

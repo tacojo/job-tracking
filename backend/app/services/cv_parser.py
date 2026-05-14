@@ -15,7 +15,8 @@ def _parse_with_openai(text: str) -> list[dict[str, Any]]:
     from openai import OpenAI
 
     client = OpenAI(api_key=settings.openai_api_key)
-    system_prompt = """You extract work experience from a CV/resume. Return a JSON array of objects.
+    system_prompt = """You extract work experience from a CV/resume. Use British English spelling.
+Return a JSON array of objects.
 Each object must have: employer, role, start_date, end_date, location, employment_type, level, skills (array), details (array of bullet points).
 Optional: employer_link (URL), flag (2-letter country code like gb, ro), duration (e.g. Permanent).
 Dates: use format like "Oct 2022", "Feb 2023", "Mar 2020".
