@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { api } from '../api'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
@@ -18,9 +18,23 @@ function formatDate(d) {
   return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
 }
 
-export default function ApplicationAttachments({ appId, documents = [], onRefresh }) {
+export default function ApplicationAttachments({
+  appId,
+  documents = [],
+  onRefresh,
+  jobUrl: jobUrlProp,
+  onJobUrlSave,
+}) {
   const { settings } = useSettings()
   const mask = settings.maskSensitive
+  const showJobUrl = jobUrlProp !== undefined && typeof onJobUrlSave === 'function'
+  const [jobUrlDraft, setJobUrlDraft] = useState(jobUrlProp ?? '')
+  const [jobUrlSaving, setJobUrlSaving] = useState(false)
+
+  useEffect(() => {
+    setJobUrlDraft(jobUrlProp ?? '')
+  }, [jobUrlProp])
+
   const [uploading, setUploading] = useState(null)
   const [replacing, setReplacing] = useState(null)
   const [error, setError] = useState(null)
@@ -99,8 +113,58 @@ export default function ApplicationAttachments({ appId, documents = [], onRefres
     arr.sort((a, b) => b.version - a.version)
   }
 
+  const handleSaveJobUrl = async () => {
+    if (!showJobUrl) return
+    setJobUrlSaving(true)
+    try {
+      await onJobUrlSave((jobUrlDraft || '').trim() || null)
+    } finally {
+      setJobUrlSaving(false)
+    }
+  }
+
   return (
     <div>
+      {showJobUrl && (
+        <div className="mb-4 pb-3 border-bottom">
+          <label className="form-label" htmlFor="attachments-job-url">
+            Job URL (optional)
+          </label>
+          <div className="input-group">
+            <input
+              id="attachments-job-url"
+              type={mask ? 'text' : 'url'}
+              className="form-control"
+              value={mask ? maskText(jobUrlDraft) : jobUrlDraft}
+              onChange={(e) => !mask && setJobUrlDraft(e.target.value)}
+              readOnly={mask}
+              placeholder="https://..."
+            />
+            {jobUrlDraft?.trim() && !mask && (
+              <a
+                className="btn btn-outline-secondary"
+                href={jobUrlDraft}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open job URL in new tab"
+              >
+                Open
+              </a>
+            )}
+            {!mask && (
+              <button
+                type="button"
+                className="btn btn-forest"
+                disabled={jobUrlSaving || (jobUrlDraft || '').trim() === (jobUrlProp || '').trim()}
+                onClick={handleSaveJobUrl}
+              >
+                {jobUrlSaving ? 'Saving…' : 'Save URL'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="d-flex justify-content-between align-items-center mb-2">
         <strong>Attachments</strong>
         <div className="btn-group btn-group-sm">

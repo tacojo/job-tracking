@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { api } from '../api'
 import ApplicationAttachments from '../components/ApplicationAttachments'
-import ApplicationForm from '../components/ApplicationForm'
+import { NotesSection } from '../components/ApplicationForm'
 import ApplicationProspectTab from '../components/ApplicationProspectTab'
 import ConfirmModal from '../components/ConfirmModal'
 import PageMessage from '../components/PageMessage'
 import StageList from '../components/StageList'
 import SwotAnalysis from '../components/SwotAnalysis'
+import { CalendarLinkButton, SectionCard } from '../components/ui'
+import { faChevronLeft, faChevronRight } from '../components/ui/icons'
 import { useDisplayText } from '../hooks/useDisplayText'
+import { useSettings } from '../contexts/SettingsContext'
+import { maskText } from '../utils/maskText'
 
 export default function ApplicationDetailPage() {
   const { id: appId } = useParams()
@@ -21,7 +26,7 @@ export default function ApplicationDetailPage() {
   const [error, setError] = useState(null)
   const [stageExpandedId, setStageExpandedId] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [prospectStagesTab, setProspectStagesTab] = useState('prospect') // 'prospect' | 'stages' | 'swot'
+  const [mainTab, setMainTab] = useState('prospect') // 'prospect' | 'swot' | 'stages' | 'notes'
   const [showJobSpecModal, setShowJobSpecModal] = useState(false)
   const [jobSpecText, setJobSpecText] = useState('')
   const [jobSpecSaving, setJobSpecSaving] = useState(false)
@@ -79,11 +84,10 @@ export default function ApplicationDetailPage() {
   }, [app?.id])
 
   useEffect(() => {
-    // Default to stages tab if there are any stages
     if (hasStages) {
-      setProspectStagesTab('stages')
+      setMainTab('stages')
     } else {
-      setProspectStagesTab('prospect')
+      setMainTab('prospect')
     }
   }, [app?.id, hasStages])
 
@@ -96,12 +100,6 @@ export default function ApplicationDetailPage() {
     } catch {
       // ignore; keep current app state
     }
-  }
-
-  const handleUpdate = async (data) => {
-    const updated = await api.applications.update(app.uuid, data)
-    setApp(updated)
-    navigate(`/applications/${updated.uuid}`, { replace: true })
   }
 
   const handleDeleteClick = () => setShowDeleteConfirm(true)
@@ -117,6 +115,7 @@ export default function ApplicationDetailPage() {
   const displayCompany = useDisplayText(app?.company)
   const displayRole = useDisplayText(app?.role)
   const displayRecruiter = useDisplayText(app?.recruiter)
+  const { settings } = useSettings()
 
   if (loading) return <PageMessage variant="loading">Loading…</PageMessage>
   if (error) return <PageMessage variant="danger" title="Error">{error}</PageMessage>
@@ -133,55 +132,47 @@ export default function ApplicationDetailPage() {
 
   return (
     <div>
-      {/* Row 1: Company - title + Delete */}
-      <div className="d-flex justify-content-between align-items-center mb-2">
-        <nav aria-label="breadcrumb">
-          <ol className="breadcrumb mb-0">
+      <div className="mb-2">
+        <nav aria-label="breadcrumb" className="min-w-0">
+          <ol className="breadcrumb mb-0 fs-5">
             <li className="breadcrumb-item">
-              <Link to="/applications">Applications</Link>
+              <Link to="/applications" className="text-decoration-none">
+                Applications
+              </Link>
             </li>
-            <li className="breadcrumb-item active fw-bold fs-5" aria-current="page">
-              <Link to={app.company_id ? `/companies/${app.company_id}` : '#'} className="text-decoration-none">
+            <li className="breadcrumb-item active" aria-current="page">
+              <Link
+                to={app.company_id ? `/companies/${app.company_id}` : '#'}
+                className="text-decoration-none text-body fw-semibold"
+              >
                 {displayCompany}
               </Link>
-              {' — '}{displayRole}
+              <span className="text-body-secondary fw-normal"> — {displayRole}</span>
             </li>
           </ol>
         </nav>
-        <button className="btn btn-outline-danger btn-sm" onClick={handleDeleteClick}>
-          Delete
-        </button>
       </div>
 
-      {/* Row 2: Recruiter + Updated + Calendar */}
-      <div className="d-flex align-items-center gap-2 mb-3">
-        {app.recruiter && (
-          <span className="text-muted small">Recruiter: {displayRecruiter}</span>
-        )}
-        <span className="text-muted small">Updated: {formatDate(app.updated_at)}</span>
-        <a
-          href="https://calendar.google.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-link text-decoration-none p-0"
-          title="View calendar"
-        >
-          <span style={{ fontSize: '2rem' }}>📅</span>
-        </a>
+      <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+        {app.recruiter ? (
+          <span className="text-body-secondary small">Recruiter: {displayRecruiter}</span>
+        ) : null}
+        <span className="text-body-secondary small">Updated: {formatDate(app.updated_at)}</span>
+        <CalendarLinkButton className="ms-auto" />
       </div>
 
-      {/* Row 3: Previous (left) + Next (right) */}
       {(prevApp || nextApp) && (
         <div className="d-flex justify-content-between align-items-center mb-4">
           {prevApp ? (
             <button
               type="button"
-              className="btn btn-outline-secondary"
+              className="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
               style={{ minWidth: '6rem' }}
               onClick={() => navigate(`/applications/${prevApp.uuid}`)}
               title={`Previous: ${prevApp.company} — ${prevApp.role}`}
             >
-              ← Prev
+              <FontAwesomeIcon icon={faChevronLeft} aria-hidden />
+              Prev
             </button>
           ) : (
             <span />
@@ -189,12 +180,13 @@ export default function ApplicationDetailPage() {
           {nextApp ? (
             <button
               type="button"
-              className="btn btn-outline-secondary"
+              className="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
               style={{ minWidth: '6rem' }}
               onClick={() => navigate(`/applications/${nextApp.uuid}`)}
               title={`Next: ${nextApp.company} — ${nextApp.role}`}
             >
-              Next →
+              Next
+              <FontAwesomeIcon icon={faChevronRight} aria-hidden />
             </button>
           ) : (
             <span />
@@ -202,14 +194,14 @@ export default function ApplicationDetailPage() {
         </div>
       )}
 
-      <div className="card mb-4">
-        <div className="card-header">
-          <ul className="nav nav-tabs card-header-tabs">
+      <SectionCard
+        header={
+          <ul className="nav nav-tabs card-header-tabs mb-0">
             <li className="nav-item">
               <button
                 type="button"
-                className={`nav-link ${prospectStagesTab === 'prospect' ? 'active' : ''}`}
-                onClick={() => setProspectStagesTab('prospect')}
+                className={`nav-link ${mainTab === 'prospect' ? 'active' : ''}`}
+                onClick={() => setMainTab('prospect')}
               >
                 Prospect
               </button>
@@ -217,8 +209,17 @@ export default function ApplicationDetailPage() {
             <li className="nav-item">
               <button
                 type="button"
-                className={`nav-link ${prospectStagesTab === 'stages' ? 'active' : ''}`}
-                onClick={() => setProspectStagesTab('stages')}
+                className={`nav-link ${mainTab === 'swot' ? 'active' : ''}`}
+                onClick={() => setMainTab('swot')}
+              >
+                SWOT Analysis
+              </button>
+            </li>
+            <li className="nav-item">
+              <button
+                type="button"
+                className={`nav-link ${mainTab === 'stages' ? 'active' : ''}`}
+                onClick={() => setMainTab('stages')}
               >
                 Stages
               </button>
@@ -226,60 +227,51 @@ export default function ApplicationDetailPage() {
             <li className="nav-item">
               <button
                 type="button"
-                className={`nav-link ${prospectStagesTab === 'swot' ? 'active' : ''}`}
-                onClick={() => setProspectStagesTab('swot')}
+                className={`nav-link ${mainTab === 'notes' ? 'active' : ''}`}
+                onClick={() => setMainTab('notes')}
               >
-                SWOT Analysis
+                Notes
               </button>
             </li>
           </ul>
-        </div>
-        <div className="card-body">
-          {prospectStagesTab === 'prospect' ? (
-            <ApplicationProspectTab
-              appId={app.uuid}
-              appUuid={app.uuid}
-              jdText={app.jd_text}
-              jobUrl={app.job_url}
-              documents={documents}
-              onDocumentsRefresh={() => api.applications.documents.list(appId).then(setDocuments)}
-            />
-          ) : prospectStagesTab === 'stages' ? (
-            <StageList
-              applicationId={app.id}
-              onUpdate={refetchApplication}
-              expandedId={stageExpandedId}
-              onExpandedChange={setStageExpandedId}
-              recruiterName={app.recruiter}
-              recruiterLink={recruiterLink}
-            />
-          ) : (
-            <SwotAnalysis appId={app.uuid} />
-          )}
-        </div>
-      </div>
-
-      <div className="card mb-4">
-        <div className="card-header">
-          <strong>Application Details</strong>
-        </div>
-        <div className="card-body">
-          <ApplicationForm
-            initial={app}
-            onSave={handleUpdate}
-            onCancel={null}
+        }
+      >
+        {mainTab === 'prospect' ? (
+          <ApplicationProspectTab
+            appId={app.uuid}
+            appUuid={app.uuid}
+            jdText={app.jd_text}
+            jobUrl={app.job_url}
+            documents={documents}
+            onDocumentsRefresh={() => api.applications.documents.list(appId).then(setDocuments)}
+          />
+        ) : mainTab === 'swot' ? (
+          <SwotAnalysis appId={app.uuid} />
+        ) : mainTab === 'stages' ? (
+          <StageList
+            applicationId={app.id}
+            onUpdate={refetchApplication}
+            expandedId={stageExpandedId}
+            onExpandedChange={setStageExpandedId}
+            recruiterName={app.recruiter}
+            recruiterLink={recruiterLink}
+          />
+        ) : (
+          <NotesSection
             notesLog={app.notes_log || []}
             onAddNote={async (text) => {
               const updated = await api.applications.addNote(app.uuid, text)
               setApp(updated)
             }}
+            mask={settings.maskSensitive}
+            maskText={maskText}
           />
-        </div>
-      </div>
+        )}
+      </SectionCard>
 
-      <div className="card mb-4">
-        <div className="card-header d-flex justify-content-between align-items-center">
-          <strong>Application Attachments</strong>
+      <SectionCard
+        title="Application attachments"
+        headerAside={
           <button
             type="button"
             className="btn btn-sm btn-outline-primary"
@@ -291,13 +283,31 @@ export default function ApplicationDetailPage() {
           >
             Add job description
           </button>
+        }
+      >
+        <ApplicationAttachments
+          appId={app.uuid}
+          documents={documents}
+          jobUrl={app.job_url}
+          onJobUrlSave={async (url) => {
+            const updated = await api.applications.update(app.uuid, { job_url: url })
+            setApp(updated)
+          }}
+          onRefresh={() => api.applications.documents.list(appId).then(setDocuments)}
+        />
+      </SectionCard>
+
+      <div className="card border-danger mb-4">
+        <div className="card-header bg-danger bg-opacity-10 border-danger py-2">
+          <strong className="text-danger">Danger zone</strong>
         </div>
-        <div className="card-body">
-          <ApplicationAttachments
-            appId={app.uuid}
-            documents={documents}
-            onRefresh={() => api.applications.documents.list(appId).then(setDocuments)}
-          />
+        <div className="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+          <p className="text-body-secondary small mb-0">
+            Permanently delete this application and its related data. You cannot undo this action.
+          </p>
+          <button type="button" className="btn btn-outline-danger flex-shrink-0" onClick={handleDeleteClick}>
+            Delete application
+          </button>
         </div>
       </div>
 

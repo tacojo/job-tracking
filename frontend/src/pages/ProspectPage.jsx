@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import { PageHeader } from '../components/ui'
 import { useSettings } from '../contexts/SettingsContext'
 
 export default function ProspectPage() {
@@ -175,10 +176,10 @@ export default function ProspectPage() {
 
   return (
     <div>
-      <h1 className="h4 mb-4">Prospect a job</h1>
-      <p className="text-muted mb-4">
-        Paste the job spec, then use AI to tailor your CV and/or cover letter to the role — without exaggerating. The AI will infer the company name from the job spec and use a placeholder if it cannot.
-      </p>
+      <PageHeader
+        title="Prospect a job"
+        subtitle="Paste the job spec, then use AI to tailor your CV and/or cover letter to the role — without exaggerating. The AI will infer the company name from the job spec and use a placeholder if it cannot."
+      />
 
       <form onSubmit={handleSubmit} className="card mb-4">
         <div className="card-body">

@@ -7,6 +7,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import DisplayText from '../components/DisplayText'
 import { useDisplayText } from '../hooks/useDisplayText'
 import PageMessage from '../components/PageMessage'
+import { PageHeader } from '../components/ui'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
 
@@ -121,12 +122,14 @@ export default function CompaniesPage() {
 
   return (
     <div>
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-        <h1 className="h4 mb-0">Companies</h1>
-        <button className="btn btn-forest" onClick={() => setShowPickerModal(true)}>
-          Add Company
-        </button>
-      </div>
+      <PageHeader
+        title="Companies"
+        actions={
+          <button type="button" className="btn btn-forest" onClick={() => setShowPickerModal(true)}>
+            Add Company
+          </button>
+        }
+      />
 
       <>
           {error && <div className="alert alert-danger mb-3">{error}</div>}
