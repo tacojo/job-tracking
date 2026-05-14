@@ -4,7 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
-import ConfirmModal from '../components/ConfirmModal'
+import TypedConfirmModal from '../components/TypedConfirmModal'
+import { PageHeader } from '../components/ui'
+
+const CONFIRM_PURGE_PHRASE = 'PURGE DELETED APPLICATIONS'
+const CONFIRM_RESET_PHRASE = 'DELETE ALL MY DATA'
 
 const AI_PROMPT_LABELS = {
   tailor_cv: 'Tailor CV (system prompt)',
@@ -43,8 +47,14 @@ export default function SettingsPage() {
   const { settings, setSettings } = useSettings()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [showPurgeModal, setShowPurgeModal] = useState(false)
+  const [showResetModal, setShowResetModal] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [purging, setPurging] = useState(false)
+  const [softDeletedCount, setSoftDeletedCount] = useState(null)
+  const [showSoftDeletedListModal, setShowSoftDeletedListModal] = useState(false)
+  const [softDeletedItems, setSoftDeletedItems] = useState([])
+  const [softDeletedListLoading, setSoftDeletedListLoading] = useState(false)
 
   const [aiModel, setAiModel] = useState('')
   const [aiPrompts, setAiPrompts] = useState({ tailor_cv: '', tailor_cover_letter: '', prospect_answer: '' })
@@ -83,12 +93,74 @@ export default function SettingsPage() {
       .finally(() => setAiSaving(false))
   }
 
+  useEffect(() => {
+    api.reset
+      .softDeletedCount()
+      .then((r) => setSoftDeletedCount(typeof r?.count === 'number' ? r.count : 0))
+      .catch(() => setSoftDeletedCount(null))
+  }, [])
+
+  const loadSoftDeletedList = () => {
+    setSoftDeletedListLoading(true)
+    api.reset
+      .softDeletedList()
+      .then((r) => setSoftDeletedItems(Array.isArray(r?.items) ? r.items : []))
+      .catch(() => setSoftDeletedItems([]))
+      .finally(() => setSoftDeletedListLoading(false))
+  }
+
+  const openSoftDeletedListModal = () => {
+    setShowSoftDeletedListModal(true)
+    loadSoftDeletedList()
+  }
+
+  const formatDeletedAt = (iso) => {
+    if (!iso) return '—'
+    try {
+      return new Date(iso).toLocaleString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return iso
+    }
+  }
+
+  const handlePurgeSoftDeleted = async () => {
+    setPurging(true)
+    try {
+      const res = await api.reset.purgeSoftDeleted()
+      setShowPurgeModal(false)
+      const n = res?.purged_count ?? 0
+      alert(n === 0 ? 'No soft-deleted applications to remove.' : `Permanently removed ${n} application(s).`)
+      const c = await api.reset.softDeletedCount().catch(() => null)
+      setSoftDeletedCount(typeof c?.count === 'number' ? c.count : 0)
+      setShowSoftDeletedListModal(false)
+      setSoftDeletedItems([])
+    } catch (err) {
+      console.error('Purge failed:', err)
+      alert(err.message || 'Purge failed')
+    } finally {
+      setPurging(false)
+    }
+  }
+
   const handleReset = async () => {
-    setShowResetConfirm(false)
     setResetting(true)
     try {
-      await api.reset.all()
+      const res = await api.reset.all()
+      setShowResetModal(false)
       queryClient.invalidateQueries()
+      let msg = res?.message || 'Reset complete.'
+      if (res?.backup?.absolute_path) {
+        msg += `\n\nA copy of your SQLite database was saved before wiping data:\n${res.backup.absolute_path}\n\n(Also relative to the server process: ${res.backup.path})`
+      } else {
+        msg += '\n\nNo local SQLite backup was created (database may not be file-based SQLite, or the DB file was not found).'
+      }
+      alert(msg)
       navigate('/')
     } catch (err) {
       console.error('Reset failed:', err)
@@ -100,7 +172,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="mb-4">Settings</h1>
+      <PageHeader title="Settings" />
 
       <div className="card mb-4">
         <div className="card-header">
@@ -157,6 +229,27 @@ export default function SettingsPage() {
             </div>
             <div className="card-body">
           <div className="mb-4">
+            <label className="form-label">Developer / demo mode</label>
+            <div className="form-check">
+              <input
+                type="checkbox"
+                className="form-check-input"
+                id="maskSensitive"
+                checked={settings.maskSensitive}
+                onChange={(e) => setSettings({ maskSensitive: e.target.checked })}
+              />
+              <label className="form-check-label" htmlFor="maskSensitive">
+                Mask sensitive data (company names, recruiters, etc.) for sharing screenshots with hiring managers
+              </label>
+            </div>
+            {settings.maskSensitive && (
+              <p className="small text-muted mt-1 mb-0">
+                Example: &quot;John Doe&quot; → &quot;{maskText('John Doe')}&quot;
+              </p>
+            )}
+          </div>
+
+          <div className="mb-4">
             <label className="form-label">Accent color</label>
             <div className="d-flex flex-wrap gap-2 align-items-center mb-2">
               {PRESET_COLORS.map((c) => (
@@ -201,27 +294,6 @@ export default function SettingsPage() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="mt-4 pt-3 border-top">
-            <label className="form-label">Developer / demo mode</label>
-            <div className="form-check">
-              <input
-                type="checkbox"
-                className="form-check-input"
-                id="maskSensitive"
-                checked={settings.maskSensitive}
-                onChange={(e) => setSettings({ maskSensitive: e.target.checked })}
-              />
-              <label className="form-check-label" htmlFor="maskSensitive">
-                Mask sensitive data (company names, recruiters, etc.) for sharing screenshots with hiring managers
-              </label>
-            </div>
-            {settings.maskSensitive && (
-              <p className="small text-muted mt-1 mb-0">
-                Example: &quot;John Doe&quot; → &quot;{maskText('John Doe')}&quot;
-              </p>
-            )}
           </div>
             </div>
           </div>
@@ -317,35 +389,164 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="card mb-4">
-        <div className="card-header">
-          <strong>Data</strong>
+      <div className="card border-danger mb-4">
+        <div className="card-header bg-danger bg-opacity-10 border-danger py-2">
+          <strong className="text-danger">Danger zone</strong>
         </div>
         <div className="card-body">
-          <p className="text-muted mb-3">
-            Reset all your data: applications, companies, recruiters, roles, notes, and uploaded files (CVs, documents).
-            Your account and settings remain. The app will look like first-time use.
-          </p>
-          <button
-            type="button"
-            className="btn btn-outline-danger"
-            disabled={resetting}
-            onClick={() => setShowResetConfirm(true)}
-          >
-            {resetting ? 'Resetting…' : 'Reset all data'}
-          </button>
+          <div className="border-bottom pb-4 mb-4">
+            <h6 className="text-danger">Purge soft-deleted applications</h6>
+            <p className="text-body-secondary small mb-2">
+              When you delete an application, it is hidden but kept in the database. Purging permanently removes those
+              records and their attachment folders. Active applications are not affected.
+            </p>
+            {softDeletedCount != null && (
+              <p className="small text-body-secondary mb-2">
+                Soft-deleted applications pending purge: <strong>{softDeletedCount}</strong>
+                {softDeletedCount > 0 ? (
+                  <>
+                    {' '}
+                    <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={openSoftDeletedListModal}>
+                      View list
+                    </button>
+                  </>
+                ) : null}
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn btn-outline-danger"
+              disabled={purging || !(softDeletedCount > 0)}
+              onClick={() => setShowPurgeModal(true)}
+            >
+              Purge soft-deleted applications
+            </button>
+            {softDeletedCount == null && (
+              <span className="small text-body-secondary ms-2">Loading count…</span>
+            )}
+            {softDeletedCount === 0 && (
+              <span className="small text-body-secondary ms-2">Nothing to purge.</span>
+            )}
+          </div>
+
+          <div>
+            <h6 className="text-danger">Reset all data</h6>
+            <p className="text-body-secondary small mb-2">
+              Wipes <strong>all</strong> of your tracked data for this account: applications (including hidden
+              soft-deleted ones), companies, recruiters, roles, stages, notes, CV/cover versions, CV profile &amp;
+              experience, portfolio projects, and uploaded files. Your login and server AI prompt settings are kept.
+            </p>
+            <p className="text-body-secondary small mb-2">
+              If the app uses a file-based SQLite database, the server creates a timestamped backup under{' '}
+              <code className="user-select-all">storage/backups/</code> before wiping. You will be shown the full path
+              after confirmation.
+            </p>
+            <button
+              type="button"
+              className="btn btn-outline-danger"
+              disabled={resetting}
+              onClick={() => setShowResetModal(true)}
+            >
+              {resetting ? 'Resetting…' : 'Reset all data'}
+            </button>
+          </div>
         </div>
       </div>
 
-      <ConfirmModal
-        show={showResetConfirm}
+      {showSoftDeletedListModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex={-1}>
+          <div className="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Soft-deleted applications</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  onClick={() => setShowSoftDeletedListModal(false)}
+                />
+              </div>
+              <div className="modal-body">
+                {softDeletedListLoading ? (
+                  <p className="text-body-secondary small mb-0">Loading…</p>
+                ) : softDeletedItems.length === 0 ? (
+                  <p className="text-body-secondary small mb-0">None pending.</p>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="table table-sm table-striped mb-0">
+                      <thead>
+                        <tr>
+                          <th>Company</th>
+                          <th>Role</th>
+                          <th className="text-nowrap">Deleted</th>
+                          <th className="d-none d-md-table-cell">UUID</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {softDeletedItems.map((row) => (
+                          <tr key={row.uuid}>
+                            <td>{row.company}</td>
+                            <td>{row.role}</td>
+                            <td className="text-nowrap small">{formatDeletedAt(row.deleted_at)}</td>
+                            <td className="d-none d-md-table-cell small font-monospace text-break">{row.uuid}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowSoftDeletedListModal(false)}
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-primary"
+                  disabled={softDeletedListLoading}
+                  onClick={loadSoftDeletedList}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <TypedConfirmModal
+        show={showPurgeModal}
+        title="Purge soft-deleted applications"
+        confirmPhrase={CONFIRM_PURGE_PHRASE}
+        confirmLabel="Purge permanently"
+        busy={purging}
+        onCancel={() => !purging && setShowPurgeModal(false)}
+        onConfirm={handlePurgeSoftDeleted}
+      >
+        <p className="small text-body-secondary mb-0">
+          This permanently deletes application rows that were previously soft-deleted, including related database records
+          (via cascade) and files under each application&apos;s storage folder. This cannot be undone.
+        </p>
+      </TypedConfirmModal>
+
+      <TypedConfirmModal
+        show={showResetModal}
         title="Reset all data"
-        message="This will permanently delete all applications, companies, recruiters, roles, notes, and uploaded files. Your account and settings will remain. Continue?"
-        confirmLabel="Reset all"
-        variant="danger"
+        confirmPhrase={CONFIRM_RESET_PHRASE}
+        confirmLabel="Reset everything"
+        busy={resetting}
+        onCancel={() => !resetting && setShowResetModal(false)}
         onConfirm={handleReset}
-        onCancel={() => setShowResetConfirm(false)}
-      />
+      >
+        <p className="small text-body-secondary mb-0">
+          The server will attempt to back up your SQLite database file first, then delete your data as described above.
+          You must type the confirmation phrase exactly (case-sensitive).
+        </p>
+      </TypedConfirmModal>
     </div>
   )
 }

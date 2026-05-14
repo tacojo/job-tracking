@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import DisplayText from '../components/DisplayText'
 import { useDisplayText } from '../hooks/useDisplayText'
 import PageMessage from '../components/PageMessage'
+import { PageHeader } from '../components/ui'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
 import RecruiterPickerModal from '../components/RecruiterPickerModal'
@@ -121,12 +122,14 @@ export default function RecruitersPage() {
 
   return (
     <div>
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-        <h1 className="h4 mb-0">Recruiters</h1>
-        <button className="btn btn-forest" onClick={() => setShowPickerModal(true)}>
-          Add Recruiter
-        </button>
-      </div>
+      <PageHeader
+        title="Recruiters"
+        actions={
+          <button type="button" className="btn btn-forest" onClick={() => setShowPickerModal(true)}>
+            Add Recruiter
+          </button>
+        }
+      />
 
       <>
           {error && <div className="alert alert-danger mb-3">{error}</div>}

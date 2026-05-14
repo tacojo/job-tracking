@@ -1,20 +1,19 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useAuth } from '../contexts/AuthContext'
-import { useTheme } from '../contexts/ThemeContext'
+import { faRightFromBracket } from './ui/icons'
+import { NavBrand, ThemeToggleButton } from './ui'
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
-  const { theme, toggleTheme } = useTheme()
   const [navOpen, setNavOpen] = useState(false)
 
   return (
     <>
-      <nav className="navbar navbar-expand-lg navbar-dark bg-forest">
+      <nav className="navbar navbar-expand-lg navbar-dark bg-forest shadow-sm">
         <div className="container-fluid container-lg">
-          <Link className="navbar-brand" to="/applications">
-            📋 Job Tracker
-          </Link>
+          <NavBrand />
           <button
             className="navbar-toggler"
             type="button"
@@ -55,25 +54,20 @@ export default function Layout({ children }) {
               <span className="navbar-text text-white-50 mx-2 small text-truncate" style={{ maxWidth: 150 }}>
                 {user?.email}
               </span>
+              <ThemeToggleButton variant="navbar" className="me-1" />
               <button
-                className="btn btn-outline-light btn-sm me-1"
-                onClick={toggleTheme}
-                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              >
-                {theme === 'dark' ? '☀' : '☽'}
-              </button>
-              <button
-                className="btn btn-outline-light btn-sm"
+                type="button"
+                className="btn btn-outline-light btn-sm d-inline-flex align-items-center gap-2"
                 onClick={logout}
               >
-                Sign out
+                <span>Sign out</span>
+                <FontAwesomeIcon icon={faRightFromBracket} className="fa-fw" aria-hidden />
               </button>
             </div>
           </div>
         </div>
       </nav>
-      <main className="container-fluid container-lg py-3 py-md-4 px-2 px-md-3">{children}</main>
+      <main className="app-main container-fluid container-lg py-3 py-md-4 px-2 px-md-3">{children}</main>
     </>
   )
 }

@@ -20,7 +20,7 @@ function formatNoteDate(ts) {
   }
 }
 
-function NotesSection({ notesLog, onAddNote, mask, maskText }) {
+export function NotesSection({ notesLog, onAddNote, mask, maskText }) {
   const [latestNote, setLatestNote] = useState('')
   const sortedNotes = [...(notesLog || [])].sort(
     (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)

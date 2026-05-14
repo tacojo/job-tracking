@@ -80,3 +80,10 @@ def delete_user_application_files(user_id: int) -> None:
     user_dir = FILES_ROOT / "users" / str(user_id)
     if user_dir.exists():
         shutil.rmtree(user_dir)
+
+
+def delete_application_folder(user_id: int, app_uuid: str) -> None:
+    """Remove stored files for one application (users/{user_id}/applications/{app_uuid}/)."""
+    app_dir = FILES_ROOT / "users" / str(user_id) / "applications" / app_uuid
+    if app_dir.exists():
+        shutil.rmtree(app_dir)

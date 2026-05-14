@@ -6,6 +6,7 @@ import DisplayText from '../components/DisplayText'
 import ErrorBoundary from '../components/ErrorBoundary'
 import PageMessage from '../components/PageMessage'
 import RoadmapChart from '../components/RoadmapChart'
+import { CalendarLinkButton, PageHeader, SectionCard, SortIndicator } from '../components/ui'
 import { STAGE_TYPES, STAGE_LABELS, ACTIVITY_LABELS, INACTIVE_STAGES } from '../constants/stages'
 
 const TABLE_PAGE_SIZE = 10
@@ -189,96 +190,96 @@ export default function ApplicationsPage() {
 
   return (
     <div>
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-        <h1 className="mb-0">{showAddForm ? 'Add Application' : 'Applications'}</h1>
-        <div className="d-flex align-items-center gap-3">
-          <a
-            href="https://calendar.google.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-link text-decoration-none p-0 me-2"
-            title="View calendar"
-          >
-            <span style={{ fontSize: '2rem' }}>📅</span>
-          </a>
-          <button
-            className={showAddForm ? 'btn btn-outline-secondary' : 'btn btn-forest'}
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            {showAddForm ? 'Cancel' : 'Add Application'}
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={showAddForm ? 'Add Application' : 'Applications'}
+        actions={
+          showAddForm ? (
+            <button className="btn btn-outline-secondary" onClick={() => setShowAddForm(false)} type="button">
+              Cancel
+            </button>
+          ) : (
+            <>
+              <CalendarLinkButton />
+              <button
+                type="button"
+                className="btn btn-forest"
+                onClick={() => setShowAddForm(true)}
+              >
+                Add Application
+              </button>
+            </>
+          )
+        }
+      />
 
       {showAddForm ? (
-        <div className="card mb-4">
-          <div className="card-body">
-            <ApplicationCreateForm onSave={handleCreate} onCancel={() => setShowAddForm(false)} />
-          </div>
-        </div>
+        <SectionCard title="New application">
+          <ApplicationCreateForm onSave={handleCreate} onCancel={() => setShowAddForm(false)} />
+        </SectionCard>
       ) : (
         <>
-      <div className="card mb-4">
-        <div className="card-header">
-          <strong>Roadmap (Gantt)</strong>
-          <span className="text-muted small ms-2">Active applications — stages over time</span>
-        </div>
-        <div className="card-body">
-          <ErrorBoundary>
-            <RoadmapChart />
-          </ErrorBoundary>
-        </div>
-      </div>
-      <div className="card mb-4">
-        <div className="card-body">
-          <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-            <h6 className="card-title mb-0">Filter</h6>
-            <div className="d-flex align-items-center gap-3">
-              <div className="d-flex align-items-center gap-2">
-                <span className="small text-muted">Is latest status?</span>
-                <div className="form-check form-check-inline mb-0">
-                  <input
-                    className="form-check-input"
-                    type="radio"
-                    name="stageFilterMode"
-                    id="stageFilterLatestYes"
-                    checked={filters.stageMode === STAGE_FILTER_MODES.latest}
-                    onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.latest }))}
-                  />
-                  <label className="form-check-label small" htmlFor="stageFilterLatestYes">Yes</label>
-                </div>
-                <div className="form-check form-check-inline mb-0">
-                  <input
-                    className="form-check-input"
-                    type="radio"
-                    name="stageFilterMode"
-                    id="stageFilterLatestNo"
-                    checked={filters.stageMode === STAGE_FILTER_MODES.ever}
-                    onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.ever }))}
-                  />
-                  <label className="form-check-label small" htmlFor="stageFilterLatestNo">No</label>
-                </div>
+      <SectionCard
+        title={
+          <>
+            <span className="me-2">Roadmap (Gantt)</span>
+            <span className="text-body-secondary small fw-normal">Active applications — stages over time</span>
+          </>
+        }
+      >
+        <ErrorBoundary>
+          <RoadmapChart />
+        </ErrorBoundary>
+      </SectionCard>
+      <SectionCard
+        title="Filter"
+        headerAside={
+          <div className="d-flex align-items-center flex-wrap gap-3">
+            <div className="d-flex align-items-center gap-2">
+              <span className="small text-body-secondary">Is latest status?</span>
+              <div className="form-check form-check-inline mb-0">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="stageFilterMode"
+                  id="stageFilterLatestYes"
+                  checked={filters.stageMode === STAGE_FILTER_MODES.latest}
+                  onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.latest }))}
+                />
+                <label className="form-check-label small" htmlFor="stageFilterLatestYes">Yes</label>
               </div>
-              <div className="d-flex align-items-center gap-2">
-                <span className="small text-muted">Include inactive:</span>
-                <div className="form-check form-switch mb-0">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showInactiveToggle"
-                    checked={showInactive}
-                    onChange={(e) => {
-                      setShowInactive(e.target.checked)
-                      setTablePage(1)
-                    }}
-                  />
-                  <label className="form-check-label small" htmlFor="showInactiveToggle">
-                    {showInactive ? 'Yes' : 'No'}
-                  </label>
-                </div>
+              <div className="form-check form-check-inline mb-0">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="stageFilterMode"
+                  id="stageFilterLatestNo"
+                  checked={filters.stageMode === STAGE_FILTER_MODES.ever}
+                  onChange={() => setFilters((f) => ({ ...f, stageMode: STAGE_FILTER_MODES.ever }))}
+                />
+                <label className="form-check-label small" htmlFor="stageFilterLatestNo">No</label>
+              </div>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <span className="small text-body-secondary">Include inactive:</span>
+              <div className="form-check form-switch mb-0">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id="showInactiveToggle"
+                  checked={showInactive}
+                  onChange={(e) => {
+                    setShowInactive(e.target.checked)
+                    setTablePage(1)
+                  }}
+                />
+                <label className="form-check-label small" htmlFor="showInactiveToggle">
+                  {showInactive ? 'Yes' : 'No'}
+                </label>
               </div>
             </div>
           </div>
+        }
+      >
           <div className="row g-2 align-items-end">
             <div className="col-6 col-md-3">
               <label className="form-label small mb-0">Company</label>
@@ -357,11 +358,11 @@ export default function ApplicationsPage() {
               Clear filters
             </button>
           )}
-        </div>
-      </div>
+      </SectionCard>
 
+      <SectionCard title="Applications" bodyClassName="p-0">
       <div className="table-responsive">
-        <table className="table table-sm table-hover">
+        <table className="table table-sm table-hover mb-0">
           <thead>
             <tr>
               <th
@@ -369,35 +370,35 @@ export default function ApplicationsPage() {
                 onClick={() => handleSort('company')}
                 className="user-select-none"
               >
-                Company {sortField === 'company' && (sortAsc ? '↑' : '↓')}
+                Company <SortIndicator active={sortField === 'company'} ascending={sortAsc} />
               </th>
               <th
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleSort('role')}
                 className="user-select-none"
               >
-                Role {sortField === 'role' && (sortAsc ? '↑' : '↓')}
+                Role <SortIndicator active={sortField === 'role'} ascending={sortAsc} />
               </th>
               <th
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleSort('recruiter')}
                 className="user-select-none"
               >
-                Recruiter {sortField === 'recruiter' && (sortAsc ? '↑' : '↓')}
+                Recruiter <SortIndicator active={sortField === 'recruiter'} ascending={sortAsc} />
               </th>
               <th
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleSort('latest_stage_at')}
                 className="user-select-none"
               >
-                Latest {sortField === 'latest_stage_at' && (sortAsc ? '↑' : '↓')}
+                Latest <SortIndicator active={sortField === 'latest_stage_at'} ascending={sortAsc} />
               </th>
               <th
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleSort('updated_at')}
                 className="user-select-none"
               >
-                Updated {sortField === 'updated_at' && (sortAsc ? '↑' : '↓')}
+                Updated <SortIndicator active={sortField === 'updated_at'} ascending={sortAsc} />
               </th>
             </tr>
           </thead>
@@ -410,8 +411,8 @@ export default function ApplicationsPage() {
       </div>
 
       {filteredApps.length > 0 && (
-        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-2">
-          <p className="text-muted small mb-0">
+        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 px-3 py-2 border-top">
+          <p className="text-body-secondary small mb-0">
             {filteredApps.length} application{filteredApps.length === 1 ? '' : 's'}
             {!showInactive && applications.length > filteredApps.length && 
               ` (${applications.length - filteredApps.length} inactive hidden)`}
@@ -441,12 +442,15 @@ export default function ApplicationsPage() {
       )}
 
       {filteredApps.length === 0 && applications.length === 0 && (
-        <p className="text-muted mb-0">No applications yet. Add one to get started.</p>
+        <p className="text-body-secondary mb-0 px-3 py-4">No applications yet. Add one to get started.</p>
       )}
       
       {filteredApps.length === 0 && applications.length > 0 && (
-        <p className="text-muted mb-0">No active applications. Toggle "Include inactive" to see rejected/no feedback applications.</p>
+        <p className="text-body-secondary mb-0 px-3 py-4 border-top">
+          No active applications. Toggle &quot;Include inactive&quot; to see rejected/no feedback applications.
+        </p>
       )}
+      </SectionCard>
         </>
       )}
     </div>

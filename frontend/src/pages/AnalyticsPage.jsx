@@ -17,6 +17,7 @@ import {
 import { api } from '../api'
 import DisplayText from '../components/DisplayText'
 import PageMessage from '../components/PageMessage'
+import { PageHeader } from '../components/ui'
 import { STAGE_LABELS, STAGE_ORDER, STAGE_TYPES, TERMINUS_STAGES, INACTIVE_STAGES } from '../constants/stages'
 
 const TERMINUS_STAGES_SET = new Set(TERMINUS_STAGES)
@@ -151,7 +152,7 @@ export default function AnalyticsPage() {
   
   return (
     <div>
-      <h1 className="mb-4">Analytics</h1>
+      <PageHeader title="Analytics" />
 
       {/* Filters */}
       <div className="card mb-4">

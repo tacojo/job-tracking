@@ -323,6 +323,22 @@ export const api = {
   },
 
   reset: {
+    softDeletedCount: () =>
+      fetch(`${BASE}/api/reset/soft-deleted-count`, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
+    softDeletedList: () =>
+      fetch(`${BASE}/api/reset/soft-deleted`, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
+    purgeSoftDeleted: () =>
+      fetch(`${BASE}/api/reset/purge-soft-deleted`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
     all: () =>
       fetch(`${BASE}/api/reset`, {
         method: 'POST',
