@@ -1,7 +1,7 @@
 """Application prospect API: prospect tab (tailor CV/cover letter, Q&A) per application."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -18,6 +18,7 @@ from app.models import (
     CvExperience,
     CvProfile,
     JobDescription,
+    Project,
     User,
 )
 from app.schemas import ApplicationDocumentRead
@@ -92,6 +93,9 @@ class SwotAnalysisResponse(BaseModel):
     ]  # Each weakness will have 'text' and 'search_terms' (list of phrases to Google)
     opportunities: List[str]
     threats: List[str]
+    model: Optional[str] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
 
 
 class SaveSwotAnalysisRequest(BaseModel):
@@ -436,6 +440,88 @@ def set_job_spec_from_text(
     return ApplicationDocumentRead.model_validate(doc)
 
 
+def _apply_swot_key_aliases(data: dict) -> None:
+    """Rename singular / alternate SWOT keys to canonical names (mutates data)."""
+    if not isinstance(data, dict):
+        return
+    synonyms = {
+        "strengths": frozenset({"strength", "strengths"}),
+        "weaknesses": frozenset({"weakness", "weaknesses"}),
+        "opportunities": frozenset({"opportunity", "opportunities"}),
+        "threats": frozenset({"threat", "threats"}),
+    }
+    lower_map: dict[str, str] = {}
+    for key in list(data.keys()):
+        if isinstance(key, str):
+            lower_map.setdefault(key.lower(), key)
+    for canon, syns in synonyms.items():
+        if canon in data:
+            continue
+        for syn in syns:
+            old_key = lower_map.get(syn)
+            if old_key is not None and old_key in data:
+                data[canon] = data.pop(old_key)
+                break
+
+
+def _swot_collect_invalid_keys(data: dict) -> list[str]:
+    """Return required keys that are missing or not lists."""
+    required = ["strengths", "weaknesses", "opportunities", "threats"]
+    invalid = []
+    for k in required:
+        if k not in data or not isinstance(data[k], list):
+            invalid.append(k)
+    return invalid
+
+
+def _accumulate_swot_usage(totals: dict[str, int], response: Any) -> None:
+    """Add prompt/output token counts from a chat completion response."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    pt = getattr(usage, "prompt_tokens", None)
+    ct = getattr(usage, "completion_tokens", None)
+    if pt is not None:
+        totals["input_tokens"] = totals.get("input_tokens", 0) + int(pt)
+    if ct is not None:
+        totals["output_tokens"] = totals.get("output_tokens", 0) + int(ct)
+
+
+def _repair_swot_analysis_json(
+    client, model: str, partial: dict, missing_keys: list[str]
+) -> Tuple[dict, Any]:
+    """One follow-up completion to restore omitted SWOT keys (typically weaknesses)."""
+    import json as json_lib
+
+    system = (
+        "You repair incomplete SWOT analysis JSON. Reply with one JSON object only. British English. "
+        "It must contain exactly keys: strengths, weaknesses, opportunities, threats — each an array. "
+        'weaknesses must be an array of objects with "text" (string) and "search_terms" (array of strings). '
+        "Do not use other key names."
+    )
+    user = (
+        "The following object is incomplete (missing or wrong type for: "
+        + ", ".join(missing_keys)
+        + "). Return a complete SWOT JSON object.\n\n"
+        "Rules:\n"
+        "- Keep strengths, opportunities, threats from the partial data when present; elaborate slightly if sparse.\n"
+        "- weaknesses is mandatory: add realistic gaps versus a typical applicant for similar roles "
+        "(no fabrication of facts; frame as relative gaps or articulation gaps).\n\n"
+        "Partial JSON:\n" + json_lib.dumps(partial, ensure_ascii=False)
+    )
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        response_format={"type": "json_object"},
+        max_tokens=3500,
+    )
+    text = (response.choices[0].message.content or "").strip()
+    return json_lib.loads(text), response
+
+
 @router.post("/{app_id}/prospect/swot-analysis", response_model=SwotAnalysisResponse)
 def generate_swot_analysis(
     app_id: str,
@@ -481,24 +567,51 @@ def generate_swot_analysis(
     if not job_spec:
         raise HTTPException(
             status_code=400,
-            detail="Job description not available. Please add a job description first.",
+            detail=(
+                "Job description not available. Paste or upload the job description on this application first."
+            ),
         )
 
-    # Get CV content
+    # Get CV profile text and portfolio projects (projects can back SWOT when profile is sparse)
+    project_rows = (
+        db.query(Project)
+        .filter(Project.user_id == current_user.id)
+        .order_by(Project.created_at.desc())
+        .all()
+    )
+    if project_rows:
+        project_blocks = [f"{p.title}\n{p.description}" for p in project_rows]
+        projects_text = "\n\n---\n\n".join(project_blocks)
+    else:
+        projects_text = ""
+
     profile_data, experiences = _get_profile_and_experiences(db, current_user.id)
     cv_text = cv_experiences_to_text(profile_data, experiences)
-    if not cv_text or cv_text == "(No CV content)":
+
+    cv_ok = cv_text and cv_text != "(No CV content)"
+    if not cv_ok and not projects_text:
         raise HTTPException(
             status_code=400,
-            detail="CV content not available. Please add your CV experiences first.",
+            detail=(
+                "No candidate material for SWOT. Add structured CV experiences (My CVs → CV profile), "
+                "and/or portfolio projects under My CVs → Projects."
+            ),
         )
-
+    if not cv_ok:
+        cv_text = (
+            "(Structured CV profile is empty on My CVs. Use only the factual content in portfolio projects "
+            "below for evidence of skills and experience; do not invent employment history.)"
+        )
     # Create SWOT analysis prompt
     system_prompt = (
         "You are a professional career adviser conducting a detailed SWOT analysis. "
         "Use British English spelling and terminology throughout your response. "
         "Analyse the candidate's CV against the job specification thoroughly and respond with a JSON object. "
-        "The JSON must have exactly four keys: strengths, weaknesses, opportunities, threats. "
+        "When the user provides portfolio project descriptions alongside the CV, treat them as part of "
+        "the candidate's evidence of skills, domains, ownership, and impact—use them in strengths, weaknesses, "
+        "opportunities, and threats where relevant, consistent with what is stated there (do not invent experience). "
+        "The JSON must have exactly four keys (all required — do not omit any, especially weaknesses): "
+        "strengths, weaknesses, opportunities, threats. "
         "- strengths: array of 4-5 strings highlighting strong matches between CV and job requirements\n"
         "- weaknesses: array of 3-5 objects, each with 'text' (the weakness) and 'search_terms' (array of 2-3 specific Google search phrases)\n"
         "- opportunities: array of 3-5 strings about growth potential and advantages\n"
@@ -511,9 +624,20 @@ def generate_swot_analysis(
     user_content = (
         "Generate a comprehensive SWOT analysis comparing this CV with the job requirements.\n\n"
         f"Job Specification:\n{job_spec}\n\n---\n\nCandidate's CV:\n{cv_text}\n\n"
+    )
+    if projects_text:
+        user_content += (
+            "---\n\n"
+            "Candidate's portfolio projects (from their profile; additional detail beyond the CV layout):\n"
+            f"{projects_text}\n\n"
+        )
+
+    user_content += (
         "Example format for weaknesses:\n"
         '{"text": "Limited experience in domain X", "search_terms": ['
         '"how to explain limited domain experience interview", "learning domain X quickly", "addressing experience gaps interview"]}\n\n'
+        'Use these exact JSON keys (all four): "strengths", "weaknesses", "opportunities", "threats". '
+        "Every key must be present as an array; weaknesses must not be left out.\n\n"
         "Respond with a JSON object only, no markdown or extra text."
     )
 
@@ -532,6 +656,7 @@ def generate_swot_analysis(
         )
 
     client = OpenAI(api_key=settings.openai_api_key)
+    usage_totals: dict[str, int] = {}
 
     try:
         # Use JSON mode for reliable JSON output
@@ -542,8 +667,9 @@ def generate_swot_analysis(
                 {"role": "user", "content": user_content},
             ],
             response_format={"type": "json_object"},
-            max_tokens=3000,
+            max_tokens=4000,
         )
+        _accumulate_swot_usage(usage_totals, response)
         response_text = (response.choices[0].message.content or "").strip()
 
         # Parse the JSON response
@@ -570,8 +696,9 @@ def generate_swot_analysis(
                         },
                         {"role": "user", "content": user_content},
                     ],
-                    max_tokens=3000,
+                    max_tokens=4000,
                 )
+                _accumulate_swot_usage(usage_totals, response)
                 response_text = (response.choices[0].message.content or "").strip()
 
                 # Try to extract JSON from markdown code blocks
@@ -598,19 +725,50 @@ def generate_swot_analysis(
                 detail=f"OpenAI API error: {error_msg}",
             )
 
-    # Validate the structure
     required_keys = ["strengths", "weaknesses", "opportunities", "threats"]
+    _apply_swot_key_aliases(swot_data)
+    for rk in required_keys:
+        ck = rk.capitalize()
+        if rk not in swot_data and ck in swot_data:
+            swot_data[rk] = swot_data.pop(ck)
+
+    invalid_keys = _swot_collect_invalid_keys(swot_data)
+    if invalid_keys:
+        try:
+            swot_data, repair_response = _repair_swot_analysis_json(
+                client,
+                settings.openai_model,
+                swot_data,
+                invalid_keys,
+            )
+            _accumulate_swot_usage(usage_totals, repair_response)
+        except json.JSONDecodeError as je:
+            raise HTTPException(
+                status_code=500,
+                detail=f"SWOT repair returned invalid JSON: {je}",
+            )
+        except Exception as repair_exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"SWOT repair failed: {repair_exc}",
+            )
+        _apply_swot_key_aliases(swot_data)
+        for rk in required_keys:
+            ck = rk.capitalize()
+            if rk not in swot_data and ck in swot_data:
+                swot_data[rk] = swot_data.pop(ck)
+        invalid_keys = _swot_collect_invalid_keys(swot_data)
+        if invalid_keys:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    f"SWOT analysis incomplete after automatic repair. "
+                    f"Still missing or not a list: {invalid_keys}. Got keys: {list(swot_data.keys())}. "
+                    "Try Refresh on the SWOT tab."
+                ),
+            )
+
     for key in required_keys:
-        if key not in swot_data:
-            # Try alternative capitalization
-            alt_key = key.capitalize()
-            if alt_key in swot_data:
-                swot_data[key] = swot_data[alt_key]
-            else:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Missing required field '{key}' in SWOT analysis. Got keys: {list(swot_data.keys())}",
-                )
         if not isinstance(swot_data[key], list):
             raise HTTPException(
                 status_code=500,
@@ -647,6 +805,9 @@ def generate_swot_analysis(
         weaknesses=weaknesses,
         opportunities=swot_data.get("opportunities", []),
         threats=swot_data.get("threats", []),
+        model=settings.openai_model,
+        input_tokens=usage_totals.get("input_tokens"),
+        output_tokens=usage_totals.get("output_tokens"),
     )
 
 
