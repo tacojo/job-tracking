@@ -345,6 +345,12 @@ export const api = {
         credentials: 'include',
         headers: getAuthHeaders(),
       }).then(handleResponse),
+    clearLearning: () =>
+      fetch(`${BASE}/api/reset/clear-learning`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
   },
 
   cvProfile: {
@@ -517,6 +523,119 @@ export const api = {
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         credentials: 'include',
         body: JSON.stringify(data),
+      }).then(handleResponse),
+  },
+
+  learning: {
+    search: (query) =>
+      fetch(`${BASE}/api/learning/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify({ query }),
+      }).then(handleResponse),
+    drafts: (params = {}) => {
+      const sp = new URLSearchParams()
+      if (params.type) sp.set('type', params.type)
+      if (params.source) sp.set('source', params.source)
+      if (params.notion_level) sp.set('notion_level', params.notion_level)
+      const qs = sp.toString()
+      return fetch(`${BASE}/api/learning/drafts${qs ? `?${qs}` : ''}`, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse)
+    },
+    listItems: (params = {}) => {
+      const sp = new URLSearchParams()
+      if (params.status) sp.set('status', params.status)
+      if (params.limit != null) sp.set('limit', params.limit)
+      if (params.notion_level) sp.set('notion_level', params.notion_level)
+      const qs = sp.toString()
+      return fetch(`${BASE}/api/learning/items${qs ? `?${qs}` : ''}`, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse)
+    },
+    getItem: (id) =>
+      fetch(`${BASE}/api/learning/items/${id}`, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
+    patchItem: (id, data) =>
+      fetch(`${BASE}/api/learning/items/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+    deleteItem: (id) =>
+      fetch(`${BASE}/api/learning/items/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
+    aiRefreshItem: (id, data) =>
+      fetch(`${BASE}/api/learning/items/${id}/ai-refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+    approveItem: (id) =>
+      fetch(`${BASE}/api/learning/items/${id}/approve`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
+    extractConceptsWithAI: (id, data = {}) =>
+      fetch(`${BASE}/api/learning/items/${id}/ai-extract-concepts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify({
+          apply: true,
+          apply_links: true,
+          suggest_broad_tags: true,
+          ...data,
+        }),
+      }).then(handleResponse),
+    reviewItem: (id, ease) =>
+      fetch(`${BASE}/api/learning/items/${id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify({ ease }),
+      }).then(handleResponse),
+    askAI: (data) =>
+      fetch(`${BASE}/api/learning/ai/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+    generateFlashcards: (data) =>
+      fetch(`${BASE}/api/learning/ai/generate-flashcards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+    getGraph: () =>
+      fetch(`${BASE}/api/learning/graph`, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
+    getConceptExplore: (conceptId) =>
+      fetch(`${BASE}/api/learning/concepts/${conceptId}/explore`, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      }).then(handleResponse),
+    createConceptRelationship: (body) =>
+      fetch(`${BASE}/api/learning/concept-relationships`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify(body),
       }).then(handleResponse),
   },
 };

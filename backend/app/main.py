@@ -20,6 +20,7 @@ from app.api import (
     cv_profile,
     cv_versions,
     health,
+    learning,
     projects,
     prospect,
     recruiters,
@@ -95,6 +96,7 @@ app.include_router(cover_letters.router)
 app.include_router(projects.router)
 app.include_router(prospect.router)
 app.include_router(ai_settings.router)
+app.include_router(learning.router)
 app.include_router(recruiters.router)
 app.include_router(roles.router)
 app.include_router(stages.router)

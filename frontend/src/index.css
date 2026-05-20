@@ -122,6 +122,118 @@ body.app-shell {
   }
 }
 
+@media (min-width: 992px) {
+  .learning-left-nav {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+.learning-flashcard {
+  border-radius: var(--app-radius, 0.5rem);
+}
+
+.learning-flashcard-goal {
+  background: color-mix(in srgb, var(--bs-success) 12%, var(--bs-body-bg, #fff));
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--bs-success) 32%, transparent);
+}
+
+.learning-flashcard-mistake {
+  background: color-mix(in srgb, var(--bs-danger) 12%, var(--bs-body-bg, #fff));
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--bs-danger) 32%, transparent);
+}
+
+.learning-study-hints-blurred {
+  filter: blur(12px);
+  opacity: 0.42;
+  user-select: none;
+  pointer-events: none;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+[data-bs-theme='dark'] .learning-flashcard-goal {
+  background: color-mix(in srgb, var(--bs-success) 20%, var(--bs-body-bg, #212529));
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--bs-success) 28%, transparent);
+}
+
+[data-bs-theme='dark'] .learning-flashcard-mistake {
+  background: color-mix(in srgb, var(--bs-danger) 20%, var(--bs-body-bg, #212529));
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--bs-danger) 28%, transparent);
+}
+
+/* Card prev/next: stay two-up; allow title text to wrap inside each button */
+/* Learning card: follow-up panels — intro blurb same vertical space so textareas align (line 1 + ~2 wrap rows) */
+.learning-ai-follow-up-intro {
+  min-height: 4.75rem;
+}
+
+@media (min-width: 768px) {
+  .learning-ai-follow-up-intro {
+    min-height: 5.25rem;
+  }
+}
+
+/* Card prev/next: fixed 3-line chrome — one uppercase label row + exactly two lines for title */
+.learning-card-peer-nav .learning-card-peer-btn {
+  white-space: normal;
+  word-break: break-word;
+  hyphens: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-height: 5rem;
+}
+
+.learning-card-peer-nav .learning-card-peer-btn.align-items-end {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.learning-card-peer-nav .learning-peer-nav-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.learning-card-peer-nav .learning-peer-nav-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.25;
+  font-size: 0.875rem;
+  word-break: break-word;
+  min-height: calc(2 * 1.25 * 0.875rem);
+}
+
+.learning-card-peer-nav .learning-card-peer-empty {
+  box-sizing: border-box;
+  min-height: calc(5rem + 2px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.125rem;
+}
+
+.learning-card-peer-nav .learning-card-peer-btn.align-items-end .learning-peer-nav-title,
+.learning-card-peer-nav .learning-card-peer-empty.text-end .learning-peer-nav-title {
+  align-self: stretch;
+  text-align: end;
+}
+
+.learning-card-peer-nav .learning-card-peer-empty.text-end {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.learning-card-peer-nav .learning-card-peer-empty .learning-peer-nav-title {
+  -webkit-line-clamp: 2;
+}
+
 /* Table header sort arrows: cap SVG size (em-based FA sizing can inflate in <th>) */
 .sort-indicator {
   width: 0.65rem !important;

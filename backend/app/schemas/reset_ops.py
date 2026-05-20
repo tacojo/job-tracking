@@ -36,3 +36,9 @@ class SoftDeletedApplicationItem(BaseModel):
 
 class SoftDeletedListResponse(BaseModel):
     items: list[SoftDeletedApplicationItem]
+
+
+class ClearLearningCentreResponse(BaseModel):
+    """Response after wiping learning-centre tables for the current user."""
+
+    message: str

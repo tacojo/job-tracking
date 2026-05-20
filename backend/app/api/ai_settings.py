@@ -11,7 +11,16 @@ from app.models import AiPrompt, User
 
 router = APIRouter(prefix="/api/settings/ai", tags=["ai-settings"])
 
-PROMPT_KEYS = ("tailor_cv", "tailor_cover_letter", "prospect_answer")
+PROMPT_KEYS = (
+    "tailor_cv",
+    "tailor_cover_letter",
+    "prospect_answer",
+    "learning_ask",
+    "learning_generate_flashcards",
+    "learning_refresh_flashcard",
+    "learning_refresh_note",
+    "learning_extract_concepts",
+)
 
 
 class AiSettingsResponse(BaseModel):

@@ -12,6 +12,7 @@ import ApplicationsPage from './pages/ApplicationsPage'
 import CompaniesPage from './pages/CompaniesPage'
 import CompanyDetailPage from './pages/CompanyDetailPage'
 import CVVersionsPage from './pages/CVVersionsPage'
+import LearningCentrePage from './pages/LearningCentrePage'
 import LoginPage from './pages/LoginPage'
 import ProspectPage from './pages/ProspectPage'
 import RecruiterDetailPage from './pages/RecruiterDetailPage'
@@ -123,6 +124,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <ProspectPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/learning"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <LearningCentrePage />
                 </Layout>
               </ProtectedRoute>
             }
