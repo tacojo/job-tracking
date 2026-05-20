@@ -2,16 +2,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* ./
-
-# Reproducible install from lockfile (package-lock.json is committed)
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 
-# Copy source
-COPY . .
+COPY scripts/ensure-project-log-docs.mjs ./scripts/
+COPY frontend/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY frontend/ .
+
+RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 5173
 
-# Vite dev server (proxy target set via env in docker-compose)
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

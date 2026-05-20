@@ -17,6 +17,7 @@ import ProspectPage from './pages/ProspectPage'
 import RecruiterDetailPage from './pages/RecruiterDetailPage'
 import RecruitersPage from './pages/RecruitersPage'
 import SettingsPage from './pages/SettingsPage'
+import ProjectLogPage from './pages/ProjectLogPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -132,6 +133,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <SettingsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project-log"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ProjectLogPage />
                 </Layout>
               </ProtectedRoute>
             }

@@ -23,8 +23,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
       - "5173:5173"
     environment:
@@ -33,5 +33,7 @@ services:
       - ./frontend/src:/app/src
       - ./frontend/index.html:/app/index.html
       - ./frontend/vite.config.js:/app/vite.config.js
+      - ./docs:/app/docs
+      - ./scripts/ensure-project-log-docs.mjs:/app/scripts/ensure-project-log-docs.mjs
     depends_on:
       - backend

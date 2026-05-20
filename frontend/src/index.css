@@ -161,3 +161,208 @@ body.app-shell {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+.project-log-dl dt {
+  font-weight: 600;
+  margin-top: 0.5rem;
+  color: var(--bs-secondary-color);
+}
+
+.project-log-dl dt:first-child {
+  margin-top: 0;
+}
+
+.project-log-dl dd {
+  margin-bottom: 0;
+  margin-left: 0;
+}
+
+.project-log-list__trigger {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.project-log-list__trigger:hover,
+.project-log-list__trigger--open {
+  background: var(--bs-tertiary-bg);
+}
+
+.project-log-list__item--open + .list-group-item .project-log-list__trigger,
+.project-log-list .list-group-item + .list-group-item .project-log-list__trigger {
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.project-log-list__body {
+  background: var(--bs-tertiary-bg);
+}
+
+.project-log-bullets li {
+  line-height: 1.45;
+}
+
+.form-label-sm {
+  font-size: 0.75rem;
+  margin-bottom: 0.15rem;
+}
+
+/* Project log: 12-column row — status 1, id 1, title 6, labels 3, updated 1 */
+.project-log-row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) minmax(0, 1fr) minmax(0, 6fr) minmax(0, 3fr)
+    minmax(0, 1fr);
+  gap: 0.35rem 0.65rem;
+  align-items: center;
+  width: 100%;
+  text-align: start;
+}
+
+.project-log-row--headings {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-secondary-color);
+  background: var(--bs-tertiary-bg);
+}
+
+.project-log-row__heading-static {
+  padding: 0;
+}
+
+.project-log-sort-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.project-log-sort-th:hover,
+.project-log-sort-th:focus-visible {
+  color: var(--bs-body-color);
+  text-decoration: underline;
+  outline: none;
+}
+
+.project-log-sort-th--active {
+  color: var(--bs-body-color);
+}
+
+.project-log-sort-th__icon {
+  font-size: 0.85em;
+  line-height: 1;
+}
+
+.project-log-row__status {
+  min-width: 0;
+}
+
+.project-log-row__status-badge {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.project-log-row__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.project-log-row__date {
+  text-align: end;
+}
+
+.project-log-list__trigger {
+  display: block;
+}
+
+.project-log-copy-line {
+  cursor: text;
+}
+
+.project-log-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.project-log-pagination__start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-self: start;
+  gap: 0.25rem;
+}
+
+.project-log-pagination__center {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 5.5rem);
+  justify-self: center;
+}
+
+.project-log-pagination__end {
+  justify-self: end;
+}
+
+/* Equal width/height for First, Previous, page, Next, Last */
+.project-log-pagination__btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.5rem;
+  min-height: 1.9375rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.project-log-pagination__center .project-log-pagination__btn {
+  width: 100%;
+  margin-left: -1px;
+}
+
+.project-log-pagination__center .project-log-pagination__btn:first-child {
+  margin-left: 0;
+  border-top-left-radius: var(--bs-border-radius-sm);
+  border-bottom-left-radius: var(--bs-border-radius-sm);
+}
+
+.project-log-pagination__center .project-log-pagination__btn:last-child {
+  border-top-right-radius: var(--bs-border-radius-sm);
+  border-bottom-right-radius: var(--bs-border-radius-sm);
+}
+
+.project-log-pagination__center .project-log-pagination__btn:not(:first-child):not(:last-child) {
+  border-radius: 0;
+}
+
+@media (max-width: 768px) {
+  .project-log-row {
+    gap: 0.35rem 0.45rem;
+  }
+
+  .project-log-row__labels {
+    justify-content: flex-end;
+  }
+}

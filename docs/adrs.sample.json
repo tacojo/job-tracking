@@ -1,0 +1,9 @@
+{
+  "meta": {
+    "project": "Job Tracker",
+    "prefix": "ADR",
+    "updated": "2026-01-01"
+  },
+  "statuses": ["accepted", "superseded", "deprecated", "proposed"],
+  "adrs": []
+}

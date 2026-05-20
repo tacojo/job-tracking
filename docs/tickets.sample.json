@@ -1,0 +1,9 @@
+{
+  "meta": {
+    "project": "Job Tracker",
+    "ticketPrefix": "JAT",
+    "updated": "2026-01-01"
+  },
+  "statuses": ["done", "planned", "deferred", "rejected", "superseded", "in-progress"],
+  "tickets": []
+}
