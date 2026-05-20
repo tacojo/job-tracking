@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.schemas.reset_ops import (
     BackupInfo,
+    ClearLearningCentreResponse,
     PurgeSoftDeletedResponse,
     ResetAllResponse,
     SoftDeletedApplicationItem,
@@ -27,6 +28,7 @@ from app.schemas.reset_ops import (
 )
 from app.services import app_document_storage, storage
 from app.services.db_backup import create_sqlite_backup
+from app.services.learning_cleanup import clear_learning_centre_for_user
 
 router = APIRouter(prefix="/api", tags=["reset"])
 
@@ -109,6 +111,25 @@ def purge_soft_deleted_applications(
     return PurgeSoftDeletedResponse(purged_count=len(uuids))
 
 
+@router.post("/reset/clear-learning", response_model=ClearLearningCentreResponse)
+def clear_learning_centre(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Permanently delete all Learning Centre data for this account: flashcards, notes,
+    item links, review log, and tags. Does not touch applications, CVs, or AI prompts.
+    """
+    clear_learning_centre_for_user(db, current_user.id)
+    db.commit()
+    return ClearLearningCentreResponse(
+        message=(
+            "Learning centre cleared: flashcards and notes, concept graph nodes and edges, "
+            "item–concept links, review history, and tags were removed for your account."
+        )
+    )
+
+
 @router.post("/reset", response_model=ResetAllResponse)
 def reset_all_data(
     db: Session = Depends(get_db),
@@ -116,7 +137,7 @@ def reset_all_data(
 ):
     """
     Wipe all data for the current user: applications (including soft-deleted rows),
-    companies, recruiters, roles, CV profile/experience, projects, portfolio, uploads.
+    companies, recruiters, roles, CV profile/experience, projects, learning centre (tags, cards, reviews), uploads.
     Backs up the SQLite DB file first when applicable. Keeps user account and AI prompts.
     """
     user_id = current_user.id
@@ -166,6 +187,9 @@ def reset_all_data(
     db.query(CvProfile).filter(CvProfile.user_id == user_id).delete(
         synchronize_session=False
     )
+
+    # 9. Learning centre (learning_* tables)
+    clear_learning_centre_for_user(db, user_id)
 
     db.commit()
     return ResetAllResponse(

@@ -151,6 +151,60 @@ def _migrate_add_feedback_column():
         conn.commit()
 
 
+def _migrate_learning_table_names():
+    """Rename legacy learning-related tables so every table name starts with learning_."""
+    inspector = inspect(engine)
+    names = set(inspector.get_table_names())
+    with engine.connect() as conn:
+        if "tags" in names and "learning_tags" not in names:
+            conn.execute(text("ALTER TABLE tags RENAME TO learning_tags"))
+            conn.commit()
+            names = set(inspect(engine).get_table_names())
+        if "item_reviews" in names and "learning_item_reviews" not in names:
+            conn.execute(
+                text("ALTER TABLE item_reviews RENAME TO learning_item_reviews")
+            )
+            conn.commit()
+
+
+def _migrate_learning_v2_concept_graph_sqlite():
+    """Drop legacy learning_* layout and recreate schema (SQLite only). Wipes learning data."""
+    if "sqlite" not in settings.database_url:
+        return
+    inspector = inspect(engine)
+    names = inspector.get_table_names()
+    if "learning_items" not in names:
+        return
+    cols = []
+    try:
+        cols = [c["name"] for c in inspector.get_columns("learning_items")]
+    except Exception:
+        cols = []
+    need_drop = False
+    if "learning_concepts" not in names:
+        need_drop = True
+    if "learning_item_links" in names:
+        need_drop = True
+    if cols and "concepts_json" in cols:
+        need_drop = True
+    if not need_drop:
+        return
+    with engine.connect() as conn:
+        conn.execute(text("PRAGMA foreign_keys=OFF"))
+        for stmt in (
+            "DROP TABLE IF EXISTS learning_item_reviews",
+            "DROP TABLE IF EXISTS learning_item_links",
+            "DROP TABLE IF EXISTS learning_item_concepts",
+            "DROP TABLE IF EXISTS concept_relationships",
+            "DROP TABLE IF EXISTS learning_item_tags",
+            "DROP TABLE IF EXISTS learning_items",
+            "DROP TABLE IF EXISTS learning_concepts",
+            "DROP TABLE IF EXISTS learning_tags",
+        ):
+            conn.execute(text(stmt))
+        conn.commit()
+
+
 def init_db():
     """Create all tables from current models."""
     from app.models import (  # noqa: F401
@@ -167,22 +221,46 @@ def init_db():
         cv_profile,
         cv_version,
         job_description,
+        learning_concept,
+        learning_item,
         project,
         prospect_question,
         recruiter,
         recruiter_note,
         role,
         stage,
+        tag,
         user,
     )
 
     _migrate_stages_to_application_events()
+    _migrate_learning_table_names()
+    _migrate_learning_v2_concept_graph_sqlite()
     Base.metadata.create_all(bind=engine)
     _migrate_stage_occurred_to_scheduled()
     _migrate_add_feedback_column()
     _migrate_application_documents()
+    _migrate_learning_items_notion_level()
     _seed_prospect_questions()
     _seed_ai_prompts()
+
+
+def _migrate_learning_items_notion_level() -> None:
+    """SQLite / generic: ADD COLUMN notion_level when missing."""
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    if "learning_items" not in tables:
+        return
+    cols = [c["name"] for c in inspector.get_columns("learning_items")]
+    if "notion_level" in cols:
+        return
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE learning_items ADD COLUMN notion_level VARCHAR(32) NOT NULL DEFAULT 'intermediate'"
+            )
+        )
+        conn.commit()
 
 
 def _seed_prospect_questions():
@@ -227,6 +305,36 @@ def _seed_ai_prompts():
             "Write in British English. Use a simple, natural tone — conversational and genuine, not formal or stiff. "
             "Base your answer on the context provided (CV, cover letter, company, job spec). "
             "Do not exaggerate. Output only the answer text, no preamble or labels."
+        ),
+        "learning_ask": (
+            "You are a patient technical tutor helping someone prepare for interviews and on-the-job depth. "
+            "Use British English. Be concrete; use short paragraphs. "
+            "If asked something shallow, still add one practical angle or failure mode. "
+            "Output plain text only — no markdown headings, no preamble."
+        ),
+        "learning_generate_flashcards": (
+            "You create interview-practice flashcards in British English. "
+            'Reply with one JSON object only, with key "flashcards" (array). '
+            "Each element must have fields like question, answer, learning_goal, expected_depth, common_mistake, "
+            'example, related_to, plus "notion_level" as exactly one of: elementary, intermediate, expert '
+            "(demanding-ness of the main idea—foundational vs typical practitioner depth vs niche or harsh trade-offs)."
+        ),
+        "learning_refresh_flashcard": (
+            "You improve one existing interview-prep flashcard. Use British English. "
+            'Reply with one JSON object only. Keys include: "question", "answer", optional rich strings '
+            '"learning_goal", "expected_depth", "common_mistake", "example", "related_to", and '
+            '"notion_level" (elementary | intermediate | expert) for how hard the main idea is. '
+            "Deepen thin answers; keep overall topic unless the card was wrong."
+        ),
+        "learning_refresh_note": (
+            "You improve one existing study note. Use British English, Markdown in body where useful. "
+            'Reply with one JSON object only with keys: "title" (string), "body_markdown" (string). '
+            "Clarify structure; preserve factual intent."
+        ),
+        "learning_extract_concepts": (
+            "You analyse interview-prep learning cards. Use British English in free-text fields. "
+            "Extract typed concepts, propose concept-to-concept edges (by id or name), suggest broad_tags "
+            "for library filtering, and optional graph links. Output one JSON object only."
         ),
     }
     with SessionLocal() as db:

@@ -8,12 +8,22 @@ import TypedConfirmModal from '../components/TypedConfirmModal'
 import { PageHeader } from '../components/ui'
 
 const CONFIRM_PURGE_PHRASE = 'PURGE DELETED APPLICATIONS'
+const CONFIRM_CLEAR_LEARNING_PHRASE = 'CLEAR ALL LEARNING DATA'
 const CONFIRM_RESET_PHRASE = 'DELETE ALL MY DATA'
 
 const AI_PROMPT_LABELS = {
   tailor_cv: 'Tailor CV (system prompt)',
   tailor_cover_letter: 'Tailor cover letter (system prompt)',
   prospect_answer: 'Prospect answer (interview-style answers, system prompt)',
+  learning_ask: 'Learning — Ask AI (tutor, system prompt)',
+  learning_generate_flashcards:
+    'Learning — Generate flashcards (JSON instruction, system prompt)',
+  learning_refresh_flashcard:
+    'Learning — Refresh one flashcard (JSON instruction, system prompt)',
+  learning_refresh_note:
+    'Learning — Refresh one note (JSON instruction, system prompt)',
+  learning_extract_concepts:
+    'Learning — Extract concepts & links (JSON instruction, system prompt)',
 }
 
 function parseTags(str) {
@@ -48,8 +58,10 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [showPurgeModal, setShowPurgeModal] = useState(false)
+  const [showClearLearningModal, setShowClearLearningModal] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [clearingLearning, setClearingLearning] = useState(false)
   const [purging, setPurging] = useState(false)
   const [softDeletedCount, setSoftDeletedCount] = useState(null)
   const [showSoftDeletedListModal, setShowSoftDeletedListModal] = useState(false)
@@ -57,7 +69,16 @@ export default function SettingsPage() {
   const [softDeletedListLoading, setSoftDeletedListLoading] = useState(false)
 
   const [aiModel, setAiModel] = useState('')
-  const [aiPrompts, setAiPrompts] = useState({ tailor_cv: '', tailor_cover_letter: '', prospect_answer: '' })
+  const [aiPrompts, setAiPrompts] = useState({
+    tailor_cv: '',
+    tailor_cover_letter: '',
+    prospect_answer: '',
+    learning_ask: '',
+    learning_generate_flashcards: '',
+    learning_refresh_flashcard: '',
+    learning_refresh_note: '',
+    learning_extract_concepts: '',
+  })
   const [aiLoading, setAiLoading] = useState(true)
   const [aiSaving, setAiSaving] = useState(false)
   const [aiSaveMessage, setAiSaveMessage] = useState(null)
@@ -69,11 +90,29 @@ export default function SettingsPage() {
       .then((data) => {
         if (!cancelled && data) {
           setAiModel(data.model ?? '')
-          setAiPrompts(data.prompts ?? { tailor_cv: '', tailor_cover_letter: '', prospect_answer: '' })
+          setAiPrompts(data.prompts ?? {
+            tailor_cv: '',
+            tailor_cover_letter: '',
+            prospect_answer: '',
+            learning_ask: '',
+            learning_generate_flashcards: '',
+            learning_refresh_flashcard: '',
+            learning_refresh_note: '',
+            learning_extract_concepts: '',
+          })
         }
       })
       .catch(() => {
-        if (!cancelled) setAiPrompts({ tailor_cv: '', tailor_cover_letter: '', prospect_answer: '' })
+        if (!cancelled) setAiPrompts({
+          tailor_cv: '',
+          tailor_cover_letter: '',
+          prospect_answer: '',
+          learning_ask: '',
+          learning_generate_flashcards: '',
+          learning_refresh_flashcard: '',
+          learning_refresh_note: '',
+          learning_extract_concepts: '',
+        })
       })
       .finally(() => {
         if (!cancelled) setAiLoading(false)
@@ -145,6 +184,21 @@ export default function SettingsPage() {
       alert(err.message || 'Purge failed')
     } finally {
       setPurging(false)
+    }
+  }
+
+  const handleClearLearning = async () => {
+    setClearingLearning(true)
+    try {
+      const res = await api.reset.clearLearning()
+      setShowClearLearningModal(false)
+      queryClient.invalidateQueries()
+      alert(res?.message || 'Learning centre data was deleted.')
+    } catch (err) {
+      console.error('Clear learning failed:', err)
+      alert(err.message || 'Clear learning failed')
+    } finally {
+      setClearingLearning(false)
     }
   }
 
@@ -250,7 +304,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="mb-4">
-            <label className="form-label">Accent color</label>
+            <label className="form-label">Accent colour</label>
             <div className="d-flex flex-wrap gap-2 align-items-center mb-2">
               {PRESET_COLORS.map((c) => (
                 <button
@@ -429,6 +483,25 @@ export default function SettingsPage() {
             )}
           </div>
 
+          <div className="border-bottom pb-4 mb-4">
+            <h6 className="text-danger">Delete learning centre only</h6>
+            <p className="text-body-secondary small mb-2">
+              Permanently removes every flashcard, note, tag, AI link between cards, and review history for this account.
+              Database tables used only for learning are named with the <code className="user-select-all">learning_</code>{' '}
+              prefix (e.g. <code className="user-select-all">learning_items</code>,{' '}
+              <code className="user-select-all">learning_tags</code>). Your applications, companies, CVs, and AI prompt
+              settings are not affected.
+            </p>
+            <button
+              type="button"
+              className="btn btn-outline-danger"
+              disabled={clearingLearning}
+              onClick={() => setShowClearLearningModal(true)}
+            >
+              {clearingLearning ? 'Clearing…' : 'Delete all learning data'}
+            </button>
+          </div>
+
           <div>
             <h6 className="text-danger">Reset all data</h6>
             <p className="text-body-secondary small mb-2">
@@ -530,6 +603,20 @@ export default function SettingsPage() {
         <p className="small text-body-secondary mb-0">
           This permanently deletes application rows that were previously soft-deleted, including related database records
           (via cascade) and files under each application&apos;s storage folder. This cannot be undone.
+        </p>
+      </TypedConfirmModal>
+
+      <TypedConfirmModal
+        show={showClearLearningModal}
+        title="Delete all learning data"
+        confirmPhrase={CONFIRM_CLEAR_LEARNING_PHRASE}
+        confirmLabel="Delete learning data"
+        busy={clearingLearning}
+        onCancel={() => !clearingLearning && setShowClearLearningModal(false)}
+        onConfirm={handleClearLearning}
+      >
+        <p className="small text-body-secondary mb-0">
+          This only clears the Learning Centre. Type the confirmation phrase exactly (case-sensitive, including spaces).
         </p>
       </TypedConfirmModal>
 

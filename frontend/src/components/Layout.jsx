@@ -52,6 +52,10 @@ export default function Layout({ children }) {
                 Project log
               </Link>
               <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
+              <Link className="nav-link" to="/learning" onClick={() => setNavOpen(false)}>
+                Learning
+              </Link>
+              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
               <Link className="nav-link" to="/settings" onClick={() => setNavOpen(false)}>
                 Settings
               </Link>
