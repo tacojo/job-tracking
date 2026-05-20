@@ -48,6 +48,10 @@ export default function Layout({ children }) {
                 Prospect
               </Link>
               <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
+              <Link className="nav-link" to="/project-log" onClick={() => setNavOpen(false)}>
+                Project log
+              </Link>
+              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
               <Link className="nav-link" to="/settings" onClick={() => setNavOpen(false)}>
                 Settings
               </Link>

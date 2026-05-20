@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "node ../scripts/ensure-project-log-docs.mjs",
     "dev": "vite",
     "dev:chrome": "cross-env BROWSER=chrome vite --open",
     "build": "vite build",

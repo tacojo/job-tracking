@@ -15,10 +15,11 @@ You do **not** need to create a `storage/` folder by hand. The backend creates `
 3. Create your environment file:  
    `cp .env.example .env`  
    The example sets `BYPASS_AUTH=true`, so you can use **Dev login** on first run without Google OAuth.
-4. Start everything (build images the first time):  
+4. **Project log (optional):** On first start, the frontend container creates `docs/tickets.json`, `docs/adrs.json`, and `docs/activity-log.json` from the committed `*.sample.json` files if they are missing. Those JSON files are **not** in git (local data only).
+5. Start everything (build images the first time):  
    `docker compose up --build`  
    Later, when you have not changed dependencies or Dockerfiles, you can use `docker compose up`.
-5. Open **http://localhost:5173** in your browser.
+6. Open **http://localhost:5173** in your browser.
 
 Data (SQLite DB and uploaded files) lives under **`./storage/`** on your machine and persists across restarts and `docker compose down`.
 
@@ -46,6 +47,8 @@ Data (SQLite DB and uploaded files) lives under **`./storage/`** on your machine
    npm ci
    npm run dev
    ```
+
+   `npm run dev` runs a **predev** step that creates `docs/tickets.json`, `docs/adrs.json`, and `docs/activity-log.json` from `docs/*.sample.json` when those files are missing (same as Docker). Log JSON is gitignored.
 
 5. Open **http://localhost:5173**.
 
@@ -132,6 +135,12 @@ job_tracking/
 - **Prospect & tailoring** — AI-assisted answers and tailored CV/cover letter flows when `OPENAI_API_KEY` is set.
 - **Analytics, CV versions, cover letters, application documents** — supporting APIs and UI.
 - **Health** — `GET /health` (liveness), `GET /ready` (database readiness); Bootstrap UI.
+
+## Project log
+
+Tickets (`JAT-*`), architectural decisions (`ADR-*`), and a minimal session log live under **`docs/`** and are browsable in the app at **http://localhost:5173/project-log** (header: **Project log**). See [docs/TICKETS.md](docs/TICKETS.md) and [docs/LOGGING.md](docs/LOGGING.md) for how to update them.
+
+**Git:** `docs/tickets.json`, `docs/adrs.json`, and `docs/activity-log.json` are **not committed** (local/agent history). Committed **`docs/*.sample.json`** files bootstrap an empty log on first run (Docker entrypoint or `npm run dev` predev).
 
 ## Roadmap (examples)
 

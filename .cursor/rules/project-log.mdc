@@ -1,0 +1,20 @@
+---
+description: Update project log JSON in docs/ after features or bugfixes
+globs:
+  - docs/**
+  - backend/**
+  - frontend/**
+alwaysApply: true
+---
+
+# Project log updates
+
+When you **implement a feature**, **fix a bug**, or **debug** behaviour in this repo:
+
+1. Append one entry to `docs/activity-log.json` (`LOG-n`, date, type, one-line summary, optional `ticketIds` / `adrIds`, `components`).
+2. Update or add a row in `docs/tickets.json` (`JAT-n`, status, `achieved` as bullet string array when multiple outcomes).
+3. Add or update `docs/adrs.json` only for **architectural** choices (tradeoffs, caveats) — not routine bugfixes.
+
+See `docs/LOGGING.md` for field shapes. Do not skip this at end of task.
+
+`docs/tickets.json`, `docs/adrs.json`, and `docs/activity-log.json` are gitignored (local only). Edit them on disk; do not expect them in commits. Samples live in `docs/*.sample.json`.

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "description": "Minimal log of add/debug sessions. Append one entry per agent or dev session.",
+    "updated": "2026-01-01"
+  },
+  "entries": []
+}

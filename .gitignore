@@ -42,6 +42,11 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Project log data (local only; bootstrap from docs/*.sample.json)
+docs/tickets.json
+docs/adrs.json
+docs/activity-log.json
+
 # Internal planning notes
 scratch/
 
