@@ -1,17 +1,17 @@
 """Application documents API - upload, list, download, replace."""
 
 from pathlib import Path
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.config import settings
 from app.db import get_db
 from app.models import Application, ApplicationDocument, User
 from app.schemas import ApplicationDocumentRead
 from app.services import app_document_storage
+from app.services.file_responses import serve_storage_path
 
 router = APIRouter(prefix="/api/applications", tags=["application-documents"])
 
@@ -137,7 +137,7 @@ def upload_document(
         format=fmt or "",
         mime_type=mime,
         size_bytes=len(content),
-        storage_provider="local",
+        storage_provider="supabase" if settings.uses_supabase_storage else "local",
         created_by=current_user.id,
     )
     db.add(doc)
@@ -167,26 +167,13 @@ def get_document_file(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    full_path = app_document_storage.get_full_path(doc.storage_path)
-    if not full_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-
-    disposition = "attachment" if download else "inline"
     filename = doc.filename or "document"
-    if filename.isascii():
-        content_disposition = f'{disposition}; filename="{filename}"'
-    else:
-        ascii_fallback = (
-            filename.encode("ascii", "ignore").decode("ascii") or "document"
-        )
-        encoded = quote(filename, safe="")
-        content_disposition = (
-            f"{disposition}; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded}"
-        )
-    return FileResponse(
-        full_path,
+    return serve_storage_path(
+        doc.storage_path,
         media_type=doc.mime_type or "application/octet-stream",
-        headers={"Content-Disposition": content_disposition},
+        filename=filename,
+        download=download,
+        app_document=True,
     )
 
 

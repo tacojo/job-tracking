@@ -14,19 +14,24 @@ class Base(DeclarativeBase):
     pass
 
 
+def _engine_connect_args() -> dict:
+    if settings.is_sqlite:
+        return {"check_same_thread": False}
+    return {}
+
+
 # Ensure DB directory exists for SQLite (when using file-based DB)
-_db_path = settings.database_url.replace("sqlite:///", "").strip()
-if _db_path and _db_path != ":memory:":
-    Path(_db_path).parent.mkdir(parents=True, exist_ok=True)
+if settings.is_sqlite:
+    _db_path = settings.database_url.replace("sqlite:///", "").strip()
+    if _db_path and _db_path != ":memory:":
+        Path(_db_path).parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(
     settings.database_url,
-    connect_args=(
-        {"check_same_thread": False} if "sqlite" in settings.database_url else {}
-    ),
+    connect_args=_engine_connect_args(),
 )
 
-if "sqlite" in settings.database_url:
+if settings.is_sqlite:
 
     @event.listens_for(engine, "connect")
     def _sqlite_enable_foreign_keys(dbapi_conn, _connection_record):
@@ -45,6 +50,66 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def run_alembic_upgrade() -> None:
+    """Apply Alembic migrations (Postgres / production)."""
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config(Path(__file__).resolve().parent.parent / "alembic.ini")
+    command.upgrade(alembic_cfg, "head")
+
+
+def _sqlite_only_migrations() -> None:
+    """Legacy incremental migrations for existing SQLite databases."""
+    if not settings.is_sqlite:
+        return
+    _migrate_stages_to_application_events()
+    _migrate_learning_table_names()
+    _migrate_learning_v2_concept_graph_sqlite()
+    Base.metadata.create_all(bind=engine)
+    _migrate_stage_occurred_to_scheduled()
+    _migrate_add_feedback_column()
+    _migrate_application_documents()
+    _migrate_learning_items_notion_level()
+
+
+def init_db():
+    """Create or upgrade schema; seed defaults when empty."""
+    from app.models import (  # noqa: F401
+        ai_prompt,
+        application,
+        application_document,
+        application_note,
+        application_prospect_answer,
+        application_swot_analysis,
+        company,
+        company_note,
+        cover_letter_version,
+        cv_experience,
+        cv_profile,
+        cv_version,
+        job_description,
+        learning_concept,
+        learning_item,
+        project,
+        prospect_question,
+        recruiter,
+        recruiter_note,
+        role,
+        stage,
+        tag,
+        user,
+    )
+
+    if settings.is_postgres:
+        run_alembic_upgrade()
+    else:
+        _sqlite_only_migrations()
+
+    _seed_prospect_questions()
+    _seed_ai_prompts()
 
 
 def _migrate_stages_to_application_events():
@@ -169,7 +234,7 @@ def _migrate_learning_table_names():
 
 def _migrate_learning_v2_concept_graph_sqlite():
     """Drop legacy learning_* layout and recreate schema (SQLite only). Wipes learning data."""
-    if "sqlite" not in settings.database_url:
+    if not settings.is_sqlite:
         return
     inspector = inspect(engine)
     names = inspector.get_table_names()
@@ -203,46 +268,6 @@ def _migrate_learning_v2_concept_graph_sqlite():
         ):
             conn.execute(text(stmt))
         conn.commit()
-
-
-def init_db():
-    """Create all tables from current models."""
-    from app.models import (  # noqa: F401
-        ai_prompt,
-        application,
-        application_document,
-        application_note,
-        application_prospect_answer,
-        application_swot_analysis,
-        company,
-        company_note,
-        cover_letter_version,
-        cv_experience,
-        cv_profile,
-        cv_version,
-        job_description,
-        learning_concept,
-        learning_item,
-        project,
-        prospect_question,
-        recruiter,
-        recruiter_note,
-        role,
-        stage,
-        tag,
-        user,
-    )
-
-    _migrate_stages_to_application_events()
-    _migrate_learning_table_names()
-    _migrate_learning_v2_concept_graph_sqlite()
-    Base.metadata.create_all(bind=engine)
-    _migrate_stage_occurred_to_scheduled()
-    _migrate_add_feedback_column()
-    _migrate_application_documents()
-    _migrate_learning_items_notion_level()
-    _seed_prospect_questions()
-    _seed_ai_prompts()
 
 
 def _migrate_learning_items_notion_level() -> None:

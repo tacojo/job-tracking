@@ -4,13 +4,13 @@ import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db import get_db
 from app.models import CVVersion, User
 from app.services import storage
+from app.services.file_responses import serve_storage_path
 
 router = APIRouter(prefix="/api/cv-versions", tags=["cv-versions"])
 
@@ -88,20 +88,17 @@ def get_cv_file(
     if not cv:
         raise HTTPException(status_code=404, detail="CV not found")
 
-    full_path = storage.get_full_path(cv.file_path)
-    if not full_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-
     media_type = (
         "application/pdf"
         if cv.file_type == "pdf"
         else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
-    return FileResponse(
-        full_path,
+    return serve_storage_path(
+        cv.file_path,
         media_type=media_type,
         filename=cv.name + ("." + cv.file_type),
-        headers={"Content-Disposition": "inline"},
+        download=False,
+        app_document=False,
     )
 
 

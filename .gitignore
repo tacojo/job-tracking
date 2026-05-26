@@ -50,8 +50,10 @@ docs/activity-log.json
 # Internal planning notes
 scratch/
 
+# Local SQLite databases (Alembic scratch files, backups, etc.)
+*.db
+
 # Backend pytest artifacts
-backend/tests/test_app.db
 backend/tests/test_storage/
 
 

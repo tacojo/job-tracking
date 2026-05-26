@@ -1,16 +1,14 @@
-"""Application document storage - relative paths, GCS-ready."""
+"""Application document storage - relative paths, Supabase Storage or local files."""
 
-import shutil
 from datetime import datetime
 from pathlib import Path
 
 from app.config import settings
+from app.services import blob_storage
 
-# Final root for app documents; defaults to STORAGE_PATH/files (see Settings.derive_files_root).
 FILES_ROOT = Path(settings.files_root)
 FILES_ROOT.mkdir(parents=True, exist_ok=True)
 
-# Doc type -> subfolder
 DOC_TYPE_FOLDERS = {
     "cv": "documents/cv",
     "cover_letter": "documents/cover_letter",
@@ -23,9 +21,7 @@ DOC_TYPE_FOLDERS = {
 
 
 def _rel_path(user_id: int, app_uuid: str, doc_type: str, filename: str) -> str:
-    """Build relative storage path. Uses forward slashes for portability."""
     folder = DOC_TYPE_FOLDERS.get(doc_type, "documents/other")
-    # Timestamp prefix to avoid clashes: 2026-03-01T103000Z_filename.pdf
     now = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ")
     safe_name = _sanitize_filename(filename)
     rel = f"users/{user_id}/applications/{app_uuid}/{folder}/{now}_{safe_name}"
@@ -33,12 +29,9 @@ def _rel_path(user_id: int, app_uuid: str, doc_type: str, filename: str) -> str:
 
 
 def _sanitize_filename(name: str) -> str:
-    """Keep filename safe for filesystem."""
     if not name or not name.strip():
         return "unnamed"
-    # Remove path components
     base = Path(name).name
-    # Replace unsafe chars
     safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in base)
     return safe[:200] or "unnamed"
 
@@ -50,40 +43,47 @@ def save_document(
     filename: str,
     content: bytes,
 ) -> str:
-    """Save document; return relative storage_path."""
+    """Save document; return relative storage_path (under files root)."""
     rel = _rel_path(user_id, app_uuid, doc_type, filename)
-    full = FILES_ROOT / rel
-    full.parent.mkdir(parents=True, exist_ok=True)
-    full.write_bytes(content)
+    key = blob_storage.key_for_app_document(rel)
+    blob_storage.write_bytes(key, content)
     return rel
 
 
 def get_full_path(storage_path: str) -> Path:
-    """Resolve relative storage_path to absolute path."""
+    """Resolve relative storage_path to absolute local path (local backend only)."""
+    local = blob_storage.open_local_path(
+        blob_storage.key_for_app_document(storage_path)
+    )
+    if local is not None:
+        return local
     return FILES_ROOT / storage_path.replace("\\", "/")
 
 
 def delete_document(storage_path: str) -> None:
-    """Delete file by relative path."""
-    full = get_full_path(storage_path)
-    if full.exists():
-        full.unlink()
+    blob_storage.delete_key(blob_storage.key_for_app_document(storage_path))
 
 
 def read_document(storage_path: str) -> bytes:
-    """Read file by relative path."""
-    return get_full_path(storage_path).read_bytes()
+    return blob_storage.read_bytes(blob_storage.key_for_app_document(storage_path))
+
+
+def document_exists(storage_path: str) -> bool:
+    return blob_storage.exists(blob_storage.key_for_app_document(storage_path))
 
 
 def delete_user_application_files(user_id: int) -> None:
-    """Delete all application document files for a user (users/{user_id}/)."""
-    user_dir = FILES_ROOT / "users" / str(user_id)
-    if user_dir.exists():
-        shutil.rmtree(user_dir)
+    blob_storage.delete_prefix(f"files/users/{user_id}/")
 
 
 def delete_application_folder(user_id: int, app_uuid: str) -> None:
-    """Remove stored files for one application (users/{user_id}/applications/{app_uuid}/)."""
-    app_dir = FILES_ROOT / "users" / str(user_id) / "applications" / app_uuid
-    if app_dir.exists():
-        shutil.rmtree(app_dir)
+    blob_storage.delete_prefix(f"files/users/{user_id}/applications/{app_uuid}")
+
+
+def local_files_root() -> Path:
+    return FILES_ROOT
+
+
+def iter_local_files_root() -> Path:
+    """Walk local files directory (for migration upload script)."""
+    return FILES_ROOT

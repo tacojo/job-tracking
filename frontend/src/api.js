@@ -2,7 +2,7 @@
  * API client for Job Tracking backend.
  * Uses relative URLs so Vite proxy forwards to backend.
  */
-const BASE = '';
+const BASE = import.meta.env.VITE_API_URL ?? '';
 
 function getAuthHeaders() {
   const token = localStorage.getItem('auth_token')

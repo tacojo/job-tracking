@@ -39,7 +39,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = () => {
-    window.location.href = '/api/v1/auth/google'
+    const base = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+    window.location.href = `${base}/api/v1/auth/google`
   }
 
   const logout = async () => {

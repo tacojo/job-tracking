@@ -11,11 +11,18 @@ class Settings(BaseSettings):
     """Settings loaded from .env and environment."""
 
     database_url: str = "sqlite:///./storage/db/job_tracking.db"
+    # Optional override for migration/schema scripts (empty = use database_url).
+    database_url_postgres: str = ""
     storage_path: Path = Path("./storage")
     # Root for application documents (per-app uploads). Empty = STORAGE_PATH/files.
     files_root: str = Field(
         default="", description="Override; default is STORAGE_PATH/files"
     )
+    # local = ./storage on disk; supabase = Supabase Storage bucket (production).
+    storage_backend: str = Field(default="local", description="local or supabase")
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
+    supabase_storage_bucket: str = ""
     debug: bool = False
 
     @model_validator(mode="after")
@@ -27,6 +34,19 @@ class Settings(BaseSettings):
                 str(Path(self.storage_path) / "files"),
             )
         return self
+
+    @property
+    def is_postgres(self) -> bool:
+        url = self.database_url.lower()
+        return url.startswith("postgresql") or url.startswith("postgres://")
+
+    @property
+    def is_sqlite(self) -> bool:
+        return "sqlite" in self.database_url.lower()
+
+    @property
+    def uses_supabase_storage(self) -> bool:
+        return self.storage_backend.strip().lower() == "supabase"
 
     # Google OAuth (required for auth)
     google_client_id: str = ""

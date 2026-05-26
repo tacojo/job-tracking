@@ -62,8 +62,9 @@ async def auth_callback(
     )
     jwt_token = create_access_token(user.id)
 
-    # Redirect to frontend with token (cross-origin: cookie won't work for localhost:5173 vs :8000)
-    redirect_url = f"{settings.frontend_url}?auth_token={jwt_token}"
+    # Redirect to /login so SPA routing does not drop ?auth_token= before AuthContext runs.
+    base = settings.frontend_url.rstrip("/")
+    redirect_url = f"{base}/login?auth_token={jwt_token}"
     response = Response(status_code=302)
     response.headers["Location"] = redirect_url
     return response
