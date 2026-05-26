@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: job-tracker-api
+    runtime: docker
+    rootDir: backend
+    plan: starter
+    healthCheckPath: /ready
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: job-tracker-files
+      - key: BYPASS_AUTH
+        value: "false"
+      - key: JWT_SECRET
+        sync: false
+      - key: BACKEND_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: STORAGE_PATH
+        value: /app/storage
+
+  - type: web
+    name: job-tracker-web
+    runtime: static
+    buildCommand: node scripts/ensure-project-log-docs.mjs && cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false

@@ -4,13 +4,13 @@ import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db import get_db
 from app.models import CoverLetterVersion, User
 from app.services import storage
+from app.services.file_responses import serve_storage_path
 
 router = APIRouter(prefix="/api/cover-letters", tags=["cover-letters"])
 
@@ -90,20 +90,17 @@ def get_cover_letter_file(
     if not cl:
         raise HTTPException(status_code=404, detail="Cover letter not found")
 
-    full_path = storage.get_full_path(cl.file_path)
-    if not full_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-
     media_type = (
         "application/pdf"
         if cl.file_type == "pdf"
         else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
-    return FileResponse(
-        full_path,
+    return serve_storage_path(
+        cl.file_path,
         media_type=media_type,
         filename=cl.name + ("." + cl.file_type),
-        headers={"Content-Disposition": "inline"},
+        download=False,
+        app_document=False,
     )
 
 

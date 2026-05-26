@@ -1,9 +1,9 @@
-"""Local file storage (abstraction for future GCS)."""
+"""Local file storage for CV/cover letter uploads (Supabase Storage or disk)."""
 
-import shutil
 from pathlib import Path
 
 from app.config import settings
+from app.services import blob_storage
 
 
 def _base() -> Path:
@@ -13,43 +13,40 @@ def _base() -> Path:
 
 
 def save_cv(user_id: int, filename: str, content: bytes) -> str:
-    """Save CV file; return relative path."""
-    base = _base() / str(user_id)
-    base.mkdir(parents=True, exist_ok=True)
-    path = base / filename
-    path.write_bytes(content)
-    return str(path.relative_to(settings.storage_path))
+    """Save CV file; return relative path under storage_path."""
+    rel = f"uploads/{user_id}/{filename}".replace("\\", "/")
+    blob_storage.write_bytes(blob_storage.key_for_upload(rel), content)
+    return rel
 
 
 def save_cover_letter(user_id: int, filename: str, content: bytes) -> str:
-    """Save cover letter file; return relative path."""
-    base = _base() / str(user_id) / "cover_letters"
-    base.mkdir(parents=True, exist_ok=True)
-    path = base / filename
-    path.write_bytes(content)
-    return str(path.relative_to(settings.storage_path))
+    rel = f"uploads/{user_id}/cover_letters/{filename}".replace("\\", "/")
+    blob_storage.write_bytes(blob_storage.key_for_upload(rel), content)
+    return rel
 
 
 def read_file(relative_path: str) -> bytes:
-    """Read file by relative path."""
-    full = Path(settings.storage_path) / relative_path
-    return full.read_bytes()
+    return blob_storage.read_bytes(blob_storage.key_for_upload(relative_path))
 
 
 def delete_file(relative_path: str) -> None:
-    """Delete file by relative path."""
-    full = Path(settings.storage_path) / relative_path
-    if full.exists():
-        full.unlink()
+    blob_storage.delete_key(blob_storage.key_for_upload(relative_path))
 
 
 def get_full_path(relative_path: str) -> Path:
-    """Get absolute path for a stored file."""
+    local = blob_storage.open_local_path(blob_storage.key_for_upload(relative_path))
+    if local is not None:
+        return local
     return Path(settings.storage_path) / relative_path
 
 
+def file_exists(relative_path: str) -> bool:
+    return blob_storage.exists(blob_storage.key_for_upload(relative_path))
+
+
 def delete_user_uploads(user_id: int) -> None:
-    """Delete all CV uploads for a user (uploads/{user_id}/)."""
-    user_dir = Path(settings.storage_path) / "uploads" / str(user_id)
-    if user_dir.exists():
-        shutil.rmtree(user_dir)
+    blob_storage.delete_prefix(f"uploads/{user_id}")
+
+
+def local_uploads_root() -> Path:
+    return Path(settings.storage_path) / "uploads"

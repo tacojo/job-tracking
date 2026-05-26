@@ -147,6 +147,12 @@ Tickets (`JAT-*`), architectural decisions (`ADR-*`), and a minimal session log 
 - Deeper doc import/export and calendar views
 - Linked folders and further polish
 
+## Online deployment (Supabase + Render)
+
+Use the app from any device by hosting the API on **Render**, the database on **Supabase Postgres**, and uploads on **Supabase Storage**. Local `./storage` stays as backup after cutover.
+
+Full runbook: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** (schema prep, migration scripts, cutover checklist).
+
 ## Configuration
 
 Environment variables are documented in **`.env.example`** (same content at the **project root** and under **`backend/`**). Copy to **`.env` in the project root** when using Docker Compose; copy to **`backend/.env`** when running `uvicorn` from the `backend/` folder (see [Quick start](#quick-start-new-clone)).
@@ -159,7 +165,13 @@ Environment variables are documented in **`.env.example`** (same content at the 
 | JWT_SECRET            | change-me-in-production    | Secret for JWT signing and session middleware |
 | BACKEND_URL           | http://localhost:8000      | Backend URL (OAuth `redirect_uri`) |
 | FRONTEND_URL          | http://localhost:5173      | Frontend URL (post-login redirect) |
-| DATABASE_URL          | sqlite:///./storage/db/job_tracking.db | SQLite database URL |
+| DATABASE_URL          | sqlite:///./storage/db/job_tracking.db | SQLite (local) or Postgres URL (Render) |
+| DATABASE_URL_POSTGRES | (empty)                    | Optional; migration/schema scripts target |
+| STORAGE_BACKEND       | local                      | `local` (dev) or `supabase` (Render production) |
+| SUPABASE_URL          | (empty)                    | Required when `STORAGE_BACKEND=supabase` |
+| SUPABASE_SERVICE_ROLE_KEY | (empty)                | Backend only; never expose to frontend |
+| SUPABASE_STORAGE_BUCKET | job-tracker-files        | Private bucket for CVs, JDs, etc. |
 | STORAGE_PATH          | ./storage                  | Base path for file storage |
 | FILES_ROOT            | (STORAGE_PATH)/files       | Application documents root; optional override |
+| VITE_API_URL          | (empty)                    | Render static site build; backend URL |
 | OPENAI_API_KEY        | (none)                     | Enables OpenAI for prospect/tailoring and optional CV parsing; see `OPENAI_MODEL` in `backend/app/config.py` |

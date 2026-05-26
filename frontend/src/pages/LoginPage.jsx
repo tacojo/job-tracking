@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api'
@@ -6,13 +7,17 @@ import { ThemeToggleButton } from '../components/ui'
 import { faGoogle } from '../components/ui/icons'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { user, loading, login } = useAuth()
   const [devAvailable, setDevAvailable] = useState(false)
   const [devError, setDevError] = useState(null)
 
   useEffect(() => {
     api.auth.devAvailable().then((r) => setDevAvailable(r.available)).catch(() => {})
   }, [])
+
+  if (!loading && user) {
+    return <Navigate to="/applications" replace />
+  }
 
   const handleDevLogin = async () => {
     setDevError(null)
