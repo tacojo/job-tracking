@@ -17,7 +17,7 @@ export default function PageHeader({
         ) : null}
       </div>
       {actions != null && actions !== false ? (
-        <div className="page-header__actions d-flex align-items-center flex-wrap gap-2 flex-shrink-0">
+        <div className="page-header__actions d-flex align-items-stretch align-items-sm-center flex-wrap gap-2 flex-shrink-0">
           {actions}
         </div>
       ) : null}

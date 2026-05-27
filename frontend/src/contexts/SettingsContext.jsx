@@ -1,15 +1,21 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { APP_DEFAULT_FONT } from '../constants/fonts'
+import {
+  applyFontSizeScaleCss,
+  normalizeFontSizeScale,
+} from '../constants/appearance'
 
 const SettingsContext = createContext(null)
 
 const STORAGE_KEY = 'job_tracker_settings'
 
 const DEFAULT_ACCENT = '#228b22'
-const DEFAULT_FONT = 'system-ui'
+const DEFAULT_FONT = APP_DEFAULT_FONT
 
 const DEFAULTS = {
   accentColor: '#228b22',
-  fontFamily: 'system-ui',
+  fontFamily: APP_DEFAULT_FONT,
+  fontSizeScale: 0,
   maskSensitive: false,
   preferredJobTitles: [],
   skillsStack: [],
@@ -27,6 +33,15 @@ function _darken(hex, pct) {
   return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`
 }
 
+function normalizeFontFamily(value) {
+  if (!value || value === 'system-ui') return DEFAULT_FONT
+  if (value === '"SF Mono", Monaco, monospace') {
+    return 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace'
+  }
+  if (value === 'Georgia, serif') return 'Georgia, "Times New Roman", serif'
+  return value
+}
+
 function loadSettings() {
   try {
     const s = localStorage.getItem(STORAGE_KEY)
@@ -35,7 +50,8 @@ function loadSettings() {
       return {
         ...DEFAULTS,
         accentColor: parsed.accentColor || DEFAULT_ACCENT,
-        fontFamily: parsed.fontFamily || DEFAULT_FONT,
+        fontFamily: normalizeFontFamily(parsed.fontFamily),
+        fontSizeScale: normalizeFontSizeScale(parsed.fontSizeScale),
         maskSensitive: !!parsed.maskSensitive,
         preferredJobTitles: Array.isArray(parsed.preferredJobTitles) ? parsed.preferredJobTitles : [],
         skillsStack: Array.isArray(parsed.skillsStack) ? parsed.skillsStack : [],
@@ -62,6 +78,7 @@ export function SettingsProvider({ children }) {
     root.style.setProperty('--bs-accent-active', _darken(settings.accentColor, 0.2))
     root.style.setProperty('--bs-font', settings.fontFamily)
     document.body.style.fontFamily = settings.fontFamily
+    applyFontSizeScaleCss(root, settings.fontSizeScale)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
     const meta = document.getElementById('theme-color-meta')
     if (meta) meta.setAttribute('content', settings.accentColor)

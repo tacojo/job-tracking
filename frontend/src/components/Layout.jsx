@@ -5,13 +5,27 @@ import { useAuth } from '../contexts/AuthContext'
 import { faRightFromBracket } from './ui/icons'
 import { NavBrand, ThemeToggleButton } from './ui'
 
+const NAV_LINKS = [
+  { to: '/analytics', label: 'Analytics' },
+  { to: '/applications', label: 'Applications' },
+  { to: '/recruiters', label: 'Recruiters' },
+  { to: '/companies', label: 'Companies' },
+  { to: '/cvs', label: 'My CVs' },
+  { to: '/prospect', label: 'Prospect' },
+  { to: '/project-log', label: 'Project log' },
+  { to: '/learning', label: 'Learning' },
+  { to: '/settings', label: 'Settings' },
+]
+
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
   const [navOpen, setNavOpen] = useState(false)
 
+  const closeNav = () => setNavOpen(false)
+
   return (
     <>
-      <nav className="navbar navbar-expand-lg navbar-dark bg-forest shadow-sm">
+      <nav className="navbar navbar-expand-lg navbar-dark bg-forest app-navbar">
         <div className="container-fluid container-lg">
           <NavBrand />
           <button
@@ -24,53 +38,29 @@ export default function Layout({ children }) {
             <span className="navbar-toggler-icon" />
           </button>
           <div className={`collapse navbar-collapse ${navOpen ? 'show' : ''}`}>
-            <div className="navbar-nav ms-auto align-items-lg-center flex-wrap gap-1 gap-lg-0">
-              <Link className="nav-link" to="/analytics" onClick={() => setNavOpen(false)}>
-                Analytics
-              </Link>
-              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
-              <Link className="nav-link" to="/applications" onClick={() => setNavOpen(false)}>
-                Applications
-              </Link>
-              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
-              <Link className="nav-link" to="/recruiters" onClick={() => setNavOpen(false)}>
-                Recruiters
-              </Link>
-              <Link className="nav-link" to="/companies" onClick={() => setNavOpen(false)}>
-                Companies
-              </Link>
-              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
-              <Link className="nav-link" to="/cvs" onClick={() => setNavOpen(false)}>
-                My CVs
-              </Link>
-              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
-              <Link className="nav-link" to="/prospect" onClick={() => setNavOpen(false)}>
-                Prospect
-              </Link>
-              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
-              <Link className="nav-link" to="/project-log" onClick={() => setNavOpen(false)}>
-                Project log
-              </Link>
-              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
-              <Link className="nav-link" to="/learning" onClick={() => setNavOpen(false)}>
-                Learning
-              </Link>
-              <span className="navbar-text text-white-50 mx-1 d-none d-lg-inline">|</span>
-              <Link className="nav-link" to="/settings" onClick={() => setNavOpen(false)}>
-                Settings
-              </Link>
-              <span className="navbar-text text-white-50 mx-2 small text-truncate" style={{ maxWidth: 150 }}>
+            <div className="navbar-nav ms-auto align-items-lg-center gap-lg-0">
+              {NAV_LINKS.map(({ to, label }) => (
+                <Link key={to} className="nav-link" to={to} onClick={closeNav}>
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <div className="navbar-account-bar">
+              <span className="navbar-account-bar__email text-truncate" title={user?.email}>
                 {user?.email}
               </span>
-              <ThemeToggleButton variant="navbar" className="me-1" />
-              <button
-                type="button"
-                className="btn btn-outline-light btn-sm d-inline-flex align-items-center gap-2"
-                onClick={logout}
-              >
-                <span>Sign out</span>
-                <FontAwesomeIcon icon={faRightFromBracket} className="fa-fw" aria-hidden />
-              </button>
+              <div className="navbar-account-bar__actions">
+                <ThemeToggleButton variant="navbar" />
+                <button
+                  type="button"
+                  className="btn btn-outline-light btn-sm btn-sign-out d-inline-flex align-items-center gap-2"
+                  onClick={logout}
+                  aria-label="Sign out"
+                >
+                  <span className="d-none d-sm-inline">Sign out</span>
+                  <FontAwesomeIcon icon={faRightFromBracket} className="fa-fw" aria-hidden />
+                </button>
+              </div>
             </div>
           </div>
         </div>

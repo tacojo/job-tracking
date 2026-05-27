@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api'
-import { PageHeader } from '../components/ui'
+import { PageHeader, SideNav } from '../components/ui'
 
 function parseTagNames(str) {
   if (!str || typeof str !== 'string') return []
@@ -928,42 +928,24 @@ export default function LearningCentrePage() {
 
       <div className="row g-4">
         <div className="col-lg-3 col-md-4">
-          <div className="card shadow-sm learning-left-nav">
-            <div className="card-header py-2 small fw-semibold">Learning</div>
-            <div className="list-group list-group-flush">
-              <button
-                type="button"
-                className={`list-group-item list-group-item-action${navAskActive ? ' active' : ''}`}
-                onClick={goToAsk}
-              >
-                Ask AI
-              </button>
-              <button
-                type="button"
-                className={`list-group-item list-group-item-action${navGenerateActive ? ' active' : ''}`}
-                onClick={goToGenerate}
-              >
-                Generate draft
-              </button>
-              <div className="list-group-item py-2 small fw-semibold text-body-secondary bg-body-secondary bg-opacity-10">
-                Library
-              </div>
-              <button
-                type="button"
-                className={`list-group-item list-group-item-action ps-4${navLibraryDraftActive ? ' active' : ''}`}
-                onClick={goToLibraryDraft}
-              >
-                Draft ({drafts.length})
-              </button>
-              <button
-                type="button"
-                className={`list-group-item list-group-item-action ps-4${navLibraryApprovedActive ? ' active' : ''}`}
-                onClick={goToLibraryApproved}
-              >
-                Approved ({approvedItems.length})
-              </button>
-            </div>
-            <div className="card-body border-top py-2">
+          <div className="card learning-left-nav">
+            <div className="card-body p-2">
+              <SideNav aria-label="Learning sections">
+                <SideNav.Item active={navAskActive} onClick={goToAsk}>
+                  Ask AI
+                </SideNav.Item>
+                <SideNav.Item active={navGenerateActive} onClick={goToGenerate}>
+                  Generate draft
+                </SideNav.Item>
+                <SideNav.Label>Library</SideNav.Label>
+                <SideNav.Item indent active={navLibraryDraftActive} onClick={goToLibraryDraft}>
+                  Draft ({drafts.length})
+                </SideNav.Item>
+                <SideNav.Item indent active={navLibraryApprovedActive} onClick={goToLibraryApproved}>
+                  Approved ({approvedItems.length})
+                </SideNav.Item>
+              </SideNav>
+              <div className="border-top pt-2 mt-2">
               <button
                 type="button"
                 className="btn btn-outline-secondary btn-sm w-100"
@@ -985,6 +967,7 @@ export default function LearningCentrePage() {
                   . Concepts are graph nodes; flashcards link to concepts.
                 </p>
               )}
+              </div>
             </div>
           </div>
         </div>

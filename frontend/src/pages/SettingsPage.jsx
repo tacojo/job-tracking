@@ -5,7 +5,8 @@ import { api } from '../api'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
 import TypedConfirmModal from '../components/TypedConfirmModal'
-import { PageHeader } from '../components/ui'
+import { PageHeader, SideNav, FontSizeScaleControl } from '../components/ui'
+import { FONT_OPTIONS } from '../constants/fonts'
 
 const CONFIRM_PURGE_PHRASE = 'PURGE DELETED APPLICATIONS'
 const CONFIRM_CLEAR_LEARNING_PHRASE = 'CLEAR ALL LEARNING DATA'
@@ -46,11 +47,11 @@ const PRESET_COLORS = [
   { name: 'Orange', value: '#fd7e14' },
 ]
 
-const FONT_OPTIONS = [
-  { name: 'System default', value: 'system-ui' },
-  { name: 'Inter', value: '"Inter", sans-serif' },
-  { name: 'Georgia', value: 'Georgia, serif' },
-  { name: 'Monospace', value: '"SF Mono", Monaco, monospace' },
+const SETTINGS_TABS = [
+  { id: 'ai', label: 'AI settings' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'job', label: 'Job settings' },
+  { id: 'danger', label: 'Danger zone', danger: true },
 ]
 
 export default function SettingsPage() {
@@ -89,6 +90,8 @@ export default function SettingsPage() {
   const [aiLoading, setAiLoading] = useState(true)
   const [aiSaving, setAiSaving] = useState(false)
   const [aiSaveMessage, setAiSaveMessage] = useState(null)
+  const [activeTab, setActiveTab] = useState('ai')
+  const selectedFontOption = FONT_OPTIONS.find((f) => f.value === settings.fontFamily)
 
   useEffect(() => {
     let cancelled = false
@@ -271,383 +274,381 @@ export default function SettingsPage() {
     <div>
       <PageHeader title="Settings" />
 
-      <div className="card mb-4">
-        <div className="card-header">
-          <strong>AI settings</strong>
-        </div>
-        <div className="card-body">
-          <div className="mb-3">
-            <label className="form-label text-muted small">Model (read-only)</label>
-            <input
-              type="text"
-              className="form-control bg-light"
-              value={aiLoading ? '…' : aiModel}
-              readOnly
-              disabled
-              aria-label="AI model"
-            />
-          </div>
-          <div className="mb-3">
-            <label className="form-label" htmlFor="openai-api-key">
-              OpenAI API key
-            </label>
-            {openaiKeyConfigured && (
-              <p className="small text-muted mb-1">
-                Configured: <code className="user-select-all">{openaiKeyMasked || '••••'}</code>
-              </p>
-            )}
-            <div className="d-flex gap-2 align-items-center flex-wrap">
-              <input
-                id="openai-api-key"
-                type="password"
-                className="form-control font-monospace small flex-grow-1"
-                style={{ minWidth: '12rem' }}
-                autoComplete="off"
-                placeholder={
-                  openaiKeyConfigured
-                    ? 'Enter a new key to replace the saved one'
-                    : 'sk-...'
-                }
-                value={openaiKeyInput}
-                onChange={(e) => {
-                  setOpenaiKeyInput(e.target.value)
-                  setOpenaiKeySaveMessage(null)
-                }}
-                disabled={aiLoading || savingOpenaiKey || clearingOpenaiKey}
-              />
-              <button
-                type="button"
-                className="btn btn-primary btn-sm text-nowrap flex-shrink-0"
-                disabled={
-                  aiLoading
-                  || savingOpenaiKey
-                  || clearingOpenaiKey
-                  || !openaiKeyInput.trim()
-                }
-                onClick={handleSaveOpenaiKey}
+      <div className="app-split-panel mb-4">
+        <aside className="app-split-panel__nav">
+          <SideNav aria-label="Settings sections">
+            {SETTINGS_TABS.map(({ id, label, danger }) => (
+              <SideNav.Item
+                key={id}
+                active={activeTab === id}
+                danger={danger}
+                onClick={() => setActiveTab(id)}
               >
-                {savingOpenaiKey ? 'Saving…' : 'Save key'}
-              </button>
-              {openaiKeyConfigured && (
-                <button
-                  type="button"
-                  className="btn btn-outline-danger btn-sm text-nowrap flex-shrink-0"
-                  disabled={aiLoading || clearingOpenaiKey || savingOpenaiKey}
-                  onClick={() => setShowClearOpenaiKeyModal(true)}
-                >
-                  Clear
-                </button>
+                {label}
+              </SideNav.Item>
+            ))}
+          </SideNav>
+        </aside>
+        <div className="app-split-panel__content">
+              {activeTab === 'ai' && (
+                <>
+                  <div className="setting-block">
+                    <div className="setting-block__title">Model</div>
+                    <p className="setting-block__hint mb-2">Read-only — configured on the server.</p>
+                    <input
+                      type="text"
+                      className="form-control bg-light"
+                      value={aiLoading ? '…' : aiModel}
+                      readOnly
+                      disabled
+                      aria-label="AI model"
+                    />
+                  </div>
+                  <div className="setting-block">
+                    <div className="setting-block__title" id="openai-api-key-label">
+                      OpenAI API key
+                    </div>
+                    <p className="setting-block__hint">
+                      Encrypted on the server and used only for your AI features.{' '}
+                      <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">
+                        Create a key on OpenAI
+                      </a>
+                      . Use a separate test key; revoke on OpenAI when done.
+                    </p>
+                    {openaiKeyConfigured && (
+                      <p className="small text-muted mb-2">
+                        Configured: <code className="user-select-all">{openaiKeyMasked || '••••'}</code>
+                      </p>
+                    )}
+                    <div className="d-flex gap-2 align-items-center flex-wrap">
+                      <input
+                        id="openai-api-key"
+                        type="password"
+                        className="form-control font-monospace small flex-grow-1"
+                        style={{ minWidth: '12rem', maxWidth: '28rem' }}
+                        autoComplete="off"
+                        aria-labelledby="openai-api-key-label"
+                        placeholder={
+                          openaiKeyConfigured
+                            ? 'Enter a new key to replace the saved one'
+                            : 'sk-...'
+                        }
+                        value={openaiKeyInput}
+                        onChange={(e) => {
+                          setOpenaiKeyInput(e.target.value)
+                          setOpenaiKeySaveMessage(null)
+                        }}
+                        disabled={aiLoading || savingOpenaiKey || clearingOpenaiKey}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm text-nowrap flex-shrink-0"
+                        disabled={
+                          aiLoading
+                          || savingOpenaiKey
+                          || clearingOpenaiKey
+                          || !openaiKeyInput.trim()
+                        }
+                        onClick={handleSaveOpenaiKey}
+                      >
+                        {savingOpenaiKey ? 'Saving…' : 'Save key'}
+                      </button>
+                      {openaiKeyConfigured && (
+                        <button
+                          type="button"
+                          className="btn btn-outline-danger btn-sm text-nowrap flex-shrink-0"
+                          disabled={aiLoading || clearingOpenaiKey || savingOpenaiKey}
+                          onClick={() => setShowClearOpenaiKeyModal(true)}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {openaiKeySaveMessage && (
+                      <p className="small text-muted mb-0 mt-2">{openaiKeySaveMessage}</p>
+                    )}
+                  </div>
+                  {!aiLoading && (
+                    <div className="setting-block">
+                      <div className="setting-block__title">System prompts</div>
+                      <p className="setting-block__hint">Custom instructions sent to the model for each feature.</p>
+                      {Object.entries(AI_PROMPT_LABELS).map(([key, label]) => (
+                        <div key={key} className="mb-3">
+                          <label className="form-label">{label}</label>
+                          <textarea
+                            className="form-control font-monospace small"
+                            rows={3}
+                            value={aiPrompts[key] ?? ''}
+                            onChange={(e) => setAiPrompts((p) => ({ ...p, [key]: e.target.value }))}
+                          />
+                        </div>
+                      ))}
+                      <div className="d-flex align-items-center gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={aiSaving}
+                          onClick={handleSaveAiPrompts}
+                        >
+                          {aiSaving ? 'Saving…' : 'Save prompts'}
+                        </button>
+                        {aiSaveMessage && (
+                          <span className="small text-muted">{aiSaveMessage}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
-            </div>
-            {openaiKeySaveMessage && (
-              <p className="small text-muted mb-0 mt-2">{openaiKeySaveMessage}</p>
-            )}
-            <div className="small text-muted mt-1">
-              <p className="mb-1">
-                Your key is encrypted on the server and used only for your AI features.{' '}
-                <a
-                  href="https://platform.openai.com/api-keys"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Create a key on OpenAI
-                </a>
-                .
-              </p>
-              <p className="mb-0">
-                <strong>Tip:</strong> create a separate key for testing (not your main account key).
-                When you are finished, revoke it on OpenAI
-                {openaiKeyConfigured ? (
-                  <> and use <strong>Clear</strong> to remove it from this app.</>
-                ) : (
-                  <>.</>
-                )}
-                {' '}Use <strong>Save key</strong> to store what you paste above.
-              </p>
-            </div>
-          </div>
-          {!aiLoading && (
-            <>
-              <div className="border-top pt-3 mb-3">
-                <label className="form-label text-muted small mb-0">System prompts</label>
-              </div>
-              {Object.entries(AI_PROMPT_LABELS).map(([key, label]) => (
-                <div key={key} className="mb-3">
-                  <label className="form-label">{label}</label>
-                  <textarea
-                    className="form-control font-monospace small"
-                    rows={3}
-                    value={aiPrompts[key] ?? ''}
-                    onChange={(e) => setAiPrompts((p) => ({ ...p, [key]: e.target.value }))}
-                  />
-                </div>
-              ))}
-              <div className="d-flex align-items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={aiSaving}
-                  onClick={handleSaveAiPrompts}
-                >
-                  {aiSaving ? 'Saving…' : 'Save prompts'}
-                </button>
-                {aiSaveMessage && (
-                  <span className="small text-muted">{aiSaveMessage}</span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
 
-      <div className="row g-4 mb-4">
-        <div className="col-lg-6">
-          <div className="card h-100">
-            <div className="card-header">
-              <strong>Appearance</strong>
-            </div>
-            <div className="card-body">
-          <div className="mb-4">
-            <label className="form-label">Developer / demo mode</label>
-            <div className="form-check">
-              <input
-                type="checkbox"
-                className="form-check-input"
-                id="maskSensitive"
-                checked={settings.maskSensitive}
-                onChange={(e) => setSettings({ maskSensitive: e.target.checked })}
-              />
-              <label className="form-check-label" htmlFor="maskSensitive">
-                Mask sensitive data (company names, recruiters, etc.) for sharing screenshots with hiring managers
-              </label>
-            </div>
-            {settings.maskSensitive && (
-              <p className="small text-muted mt-1 mb-0">
-                Example: &quot;John Doe&quot; → &quot;{maskText('John Doe')}&quot;
-              </p>
-            )}
-          </div>
+              {activeTab === 'appearance' && (
+                <>
+                  <div className="setting-block">
+                    <div className="setting-block__title">Developer / demo mode</div>
+                    <p className="setting-block__hint">Hide real names when sharing screenshots.</p>
+                    <div className="form-check">
+                      <input
+                        type="checkbox"
+                        className="form-check-input"
+                        id="maskSensitive"
+                        checked={settings.maskSensitive}
+                        onChange={(e) => setSettings({ maskSensitive: e.target.checked })}
+                      />
+                      <label className="form-check-label" htmlFor="maskSensitive">
+                        Mask sensitive data (company names, recruiters, etc.)
+                      </label>
+                    </div>
+                    {settings.maskSensitive && (
+                      <p className="small text-muted mt-2 mb-0">
+                        Example: &quot;John Doe&quot; → &quot;{maskText('John Doe')}&quot;
+                      </p>
+                    )}
+                  </div>
 
-          <div className="mb-4">
-            <label className="form-label">Accent colour</label>
-            <div className="d-flex flex-wrap gap-2 align-items-center mb-2">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  className="btn btn-sm"
-                  style={{
-                    backgroundColor: c.value,
-                    color: '#fff',
-                    border: settings.accentColor === c.value ? '3px solid #333' : '1px solid #dee2e6',
-                  }}
-                  onClick={() => setSettings({ accentColor: c.value })}
-                  title={c.name}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-            <div className="d-flex align-items-center gap-2">
-              <input
-                type="color"
-                className="form-control form-control-color"
-                value={settings.accentColor}
-                onChange={(e) => setSettings({ accentColor: e.target.value })}
-                style={{ width: 48, height: 38 }}
-              />
-              <span className="small text-muted">{settings.accentColor}</span>
-            </div>
-          </div>
+                  <div className="setting-block">
+                    <div className="setting-block__title">Accent colour</div>
+                    <p className="setting-block__hint">Used for the header and primary actions.</p>
+                    <div className="color-swatch-row mb-2">
+                      {PRESET_COLORS.map((c) => (
+                        <button
+                          key={c.value}
+                          type="button"
+                          className={`color-swatch${settings.accentColor === c.value ? ' active' : ''}`}
+                          style={{ backgroundColor: c.value }}
+                          onClick={() => setSettings({ accentColor: c.value })}
+                          title={c.name}
+                          aria-label={c.name}
+                        />
+                      ))}
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <input
+                        type="color"
+                        className="form-control form-control-color"
+                        value={settings.accentColor}
+                        onChange={(e) => setSettings({ accentColor: e.target.value })}
+                        style={{ width: '2rem', height: '2rem', padding: '0.125rem' }}
+                        aria-label="Custom accent colour"
+                      />
+                      <span className="small text-muted">{settings.accentColor}</span>
+                    </div>
+                  </div>
 
-          <div>
-            <label className="form-label">Font</label>
-            <select
-              className="form-select"
-              value={settings.fontFamily}
-              onChange={(e) => setSettings({ fontFamily: e.target.value })}
-            >
-              {FONT_OPTIONS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-          </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-lg-6">
-          <div className="card h-100">
-            <div className="card-header">
-              <strong>Job preferences</strong>
-            </div>
-            <div className="card-body">
-          <div className="mb-4">
-            <label className="form-label">Preferred job titles</label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="e.g. Data Engineer, Analytics Engineer, ML Engineer"
-              value={tagsToStr(settings.preferredJobTitles)}
-              onChange={(e) => setSettings({ preferredJobTitles: parseTags(e.target.value) })}
-            />
-            <small className="text-muted">Comma-separated</small>
-          </div>
+                  <div className="setting-block">
+                    <div className="setting-block__title">Font &amp; text size</div>
+                    <p className="setting-block__hint mb-2">
+                      Typeface and UI text scale (−2 smallest … +2 largest).
+                    </p>
+                    <div className="d-flex flex-wrap align-items-stretch gap-2 gap-md-3">
+                      <select
+                        id="settings-font"
+                        className="form-select settings-font-row__select"
+                        value={settings.fontFamily}
+                        onChange={(e) => setSettings({ fontFamily: e.target.value })}
+                        aria-label="Font family"
+                      >
+                        {FONT_OPTIONS.map((f) => (
+                          <option key={f.value} value={f.value}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                      <FontSizeScaleControl
+                        value={settings.fontSizeScale}
+                        onChange={(fontSizeScale) => setSettings({ fontSizeScale })}
+                        className="flex-shrink-0"
+                      />
+                    </div>
+                    {selectedFontOption?.description && (
+                      <p className="small text-muted mb-0 mt-2">
+                        {selectedFontOption.description}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
 
-          <div className="mb-4">
-            <label className="form-label">Skills stack</label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="e.g. dbt, BigQuery, Airflow, Python, Snowflake"
-              value={tagsToStr(settings.skillsStack)}
-              onChange={(e) => setSettings({ skillsStack: parseTags(e.target.value) })}
-            />
-            <small className="text-muted">Comma-separated</small>
-          </div>
+              {activeTab === 'job' && (
+                <>
+                  <div className="setting-block">
+                    <label className="setting-block__title" htmlFor="preferred-job-titles">
+                      Preferred job titles
+                    </label>
+                    <p className="setting-block__hint">Comma-separated.</p>
+                    <input
+                      id="preferred-job-titles"
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Data Engineer, Analytics Engineer, ML Engineer"
+                      value={tagsToStr(settings.preferredJobTitles)}
+                      onChange={(e) => setSettings({ preferredJobTitles: parseTags(e.target.value) })}
+                    />
+                  </div>
 
-          <div className="mb-4">
-            <label className="form-label">Location / remote preference</label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="e.g. Remote, Hybrid, London, Berlin"
-              value={settings.locationPreference || ''}
-              onChange={(e) => setSettings({ locationPreference: e.target.value })}
-            />
-          </div>
+                  <div className="setting-block">
+                    <label className="setting-block__title" htmlFor="skills-stack">
+                      Skills stack
+                    </label>
+                    <p className="setting-block__hint">Comma-separated.</p>
+                    <input
+                      id="skills-stack"
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. dbt, BigQuery, Airflow, Python, Snowflake"
+                      value={tagsToStr(settings.skillsStack)}
+                      onChange={(e) => setSettings({ skillsStack: parseTags(e.target.value) })}
+                    />
+                  </div>
 
-          <div>
-            <label className="form-label">Salary range (annual)</label>
-            <div className="row g-2">
-              <div className="col">
-                <input
-                  type="number"
-                  className="form-control"
-                  placeholder="Min"
-                  min={0}
-                  step={1000}
-                  value={settings.salaryRange?.min ?? ''}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setSettings({
-                      salaryRange: {
-                        ...(settings.salaryRange || {}),
-                        min: v === '' ? null : parseInt(v, 10),
-                      },
-                    })
-                  }}
-                />
-              </div>
-              <div className="col-auto align-self-center">–</div>
-              <div className="col">
-                <input
-                  type="number"
-                  className="form-control"
-                  placeholder="Max"
-                  min={0}
-                  step={1000}
-                  value={settings.salaryRange?.max ?? ''}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setSettings({
-                      salaryRange: {
-                        ...(settings.salaryRange || {}),
-                        max: v === '' ? null : parseInt(v, 10),
-                      },
-                    })
-                  }}
-                />
-              </div>
-            </div>
-            <small className="text-muted">Optional. Used for reference when evaluating roles.</small>
-          </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                  <div className="setting-block">
+                    <label className="setting-block__title" htmlFor="location-preference">
+                      Location / remote preference
+                    </label>
+                    <input
+                      id="location-preference"
+                      type="text"
+                      className="form-control"
+                      placeholder="e.g. Remote, Hybrid, London, Berlin"
+                      value={settings.locationPreference || ''}
+                      onChange={(e) => setSettings({ locationPreference: e.target.value })}
+                    />
+                  </div>
 
-      <div className="card border-danger mb-4">
-        <div className="card-header bg-danger bg-opacity-10 border-danger py-2">
-          <strong className="text-danger">Danger zone</strong>
-        </div>
-        <div className="card-body">
-          <div className="border-bottom pb-4 mb-4">
-            <h6 className="text-danger">Purge soft-deleted applications</h6>
-            <p className="text-body-secondary small mb-2">
-              When you delete an application, it is hidden but kept in the database. Purging permanently removes those
-              records and their attachment folders. Active applications are not affected.
-            </p>
-            {softDeletedCount != null && (
-              <p className="small text-body-secondary mb-2">
-                Soft-deleted applications pending purge: <strong>{softDeletedCount}</strong>
-                {softDeletedCount > 0 ? (
-                  <>
-                    {' '}
-                    <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={openSoftDeletedListModal}>
-                      View list
+                  <div className="setting-block">
+                    <div className="setting-block__title">Salary range (annual)</div>
+                    <p className="setting-block__hint">Optional. Used for reference when evaluating roles.</p>
+                    <div className="row g-2" style={{ maxWidth: '20rem' }}>
+                      <div className="col">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Min"
+                          min={0}
+                          step={1000}
+                          value={settings.salaryRange?.min ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            setSettings({
+                              salaryRange: {
+                                ...(settings.salaryRange || {}),
+                                min: v === '' ? null : parseInt(v, 10),
+                              },
+                            })
+                          }}
+                        />
+                      </div>
+                      <div className="col-auto align-self-center text-muted">–</div>
+                      <div className="col">
+                        <input
+                          type="number"
+                          className="form-control"
+                          placeholder="Max"
+                          min={0}
+                          step={1000}
+                          value={settings.salaryRange?.max ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            setSettings({
+                              salaryRange: {
+                                ...(settings.salaryRange || {}),
+                                max: v === '' ? null : parseInt(v, 10),
+                              },
+                            })
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'danger' && (
+                <>
+                  <div className="setting-block">
+                    <div className="setting-block__title text-danger">Purge soft-deleted applications</div>
+                    <p className="setting-block__hint">
+                      Permanently removes hidden applications and their attachments. Active applications are not affected.
+                    </p>
+                    {softDeletedCount != null && (
+                      <p className="small text-body-secondary mb-2">
+                        Pending purge: <strong>{softDeletedCount}</strong>
+                        {softDeletedCount > 0 ? (
+                          <>
+                            {' '}
+                            <button type="button" className="btn btn-link btn-sm p-0 align-baseline" onClick={openSoftDeletedListModal}>
+                              View list
+                            </button>
+                          </>
+                        ) : null}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm"
+                      disabled={purging || !(softDeletedCount > 0)}
+                      onClick={() => setShowPurgeModal(true)}
+                    >
+                      Purge soft-deleted applications
                     </button>
-                  </>
-                ) : null}
-              </p>
-            )}
-            <button
-              type="button"
-              className="btn btn-outline-danger"
-              disabled={purging || !(softDeletedCount > 0)}
-              onClick={() => setShowPurgeModal(true)}
-            >
-              Purge soft-deleted applications
-            </button>
-            {softDeletedCount == null && (
-              <span className="small text-body-secondary ms-2">Loading count…</span>
-            )}
-            {softDeletedCount === 0 && (
-              <span className="small text-body-secondary ms-2">Nothing to purge.</span>
-            )}
-          </div>
+                    {softDeletedCount == null && (
+                      <span className="small text-body-secondary ms-2">Loading count…</span>
+                    )}
+                    {softDeletedCount === 0 && (
+                      <span className="small text-body-secondary ms-2">Nothing to purge.</span>
+                    )}
+                  </div>
 
-          <div className="border-bottom pb-4 mb-4">
-            <h6 className="text-danger">Delete learning centre only</h6>
-            <p className="text-body-secondary small mb-2">
-              Permanently removes every flashcard, note, tag, AI link between cards, and review history for this account.
-              Database tables used only for learning are named with the <code className="user-select-all">learning_</code>{' '}
-              prefix (e.g. <code className="user-select-all">learning_items</code>,{' '}
-              <code className="user-select-all">learning_tags</code>). Your applications, companies, CVs, and AI prompt
-              settings are not affected.
-            </p>
-            <button
-              type="button"
-              className="btn btn-outline-danger"
-              disabled={clearingLearning}
-              onClick={() => setShowClearLearningModal(true)}
-            >
-              {clearingLearning ? 'Clearing…' : 'Delete all learning data'}
-            </button>
-          </div>
+                  <div className="setting-block">
+                    <div className="setting-block__title text-danger">Delete learning centre only</div>
+                    <p className="setting-block__hint">
+                      Removes flashcards, notes, tags, and review history. Applications and AI settings are kept.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm"
+                      disabled={clearingLearning}
+                      onClick={() => setShowClearLearningModal(true)}
+                    >
+                      {clearingLearning ? 'Clearing…' : 'Delete all learning data'}
+                    </button>
+                  </div>
 
-          <div>
-            <h6 className="text-danger">Reset all data</h6>
-            <p className="text-body-secondary small mb-2">
-              Wipes <strong>all</strong> of your tracked data for this account: applications (including hidden
-              soft-deleted ones), companies, recruiters, roles, stages, notes, CV/cover versions, CV profile &amp;
-              experience, portfolio projects, and uploaded files. Your login and server AI prompt settings are kept.
-            </p>
-            <p className="text-body-secondary small mb-2">
-              If the app uses a file-based SQLite database, the server creates a timestamped backup under{' '}
-              <code className="user-select-all">storage/backups/</code> before wiping. You will be shown the full path
-              after confirmation.
-            </p>
-            <button
-              type="button"
-              className="btn btn-outline-danger"
-              disabled={resetting}
-              onClick={() => setShowResetModal(true)}
-            >
-              {resetting ? 'Resetting…' : 'Reset all data'}
-            </button>
-          </div>
+                  <div className="setting-block">
+                    <div className="setting-block__title text-danger">Reset all data</div>
+                    <p className="setting-block__hint">
+                      Wipes all tracked data for this account. A SQLite backup is created first when possible.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm"
+                      disabled={resetting}
+                      onClick={() => setShowResetModal(true)}
+                    >
+                      {resetting ? 'Resetting…' : 'Reset all data'}
+                    </button>
+                  </div>
+                </>
+              )}
         </div>
       </div>
 

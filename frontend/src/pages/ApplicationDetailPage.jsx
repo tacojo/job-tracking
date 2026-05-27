@@ -297,15 +297,15 @@ export default function ApplicationDetailPage() {
         />
       </SectionCard>
 
-      <div className="card border-danger mb-4">
-        <div className="card-header bg-danger bg-opacity-10 border-danger py-2">
-          <strong className="text-danger">Danger zone</strong>
-        </div>
-        <div className="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-          <p className="text-body-secondary small mb-0">
-            Permanently delete this application and its related data. You cannot undo this action.
-          </p>
-          <button type="button" className="btn btn-outline-danger flex-shrink-0" onClick={handleDeleteClick}>
+      <div className="danger-panel">
+        <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+          <div>
+            <div className="danger-panel__title mb-1">Delete application</div>
+            <p className="text-body-secondary small mb-0">
+              Permanently delete this application and its related data. You cannot undo this action.
+            </p>
+          </div>
+          <button type="button" className="btn btn-outline-danger btn-sm flex-shrink-0" onClick={handleDeleteClick}>
             Delete application
           </button>
         </div>
