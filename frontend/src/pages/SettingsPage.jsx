@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
+import { useAuth } from '../contexts/AuthContext'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
 import TypedConfirmModal from '../components/TypedConfirmModal'
@@ -47,14 +48,21 @@ const PRESET_COLORS = [
   { name: 'Orange', value: '#fd7e14' },
 ]
 
-const SETTINGS_TABS = [
+const SETTINGS_TABS_BASE = [
   { id: 'ai', label: 'AI settings' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'job', label: 'Job settings' },
-  { id: 'danger', label: 'Danger zone', danger: true },
 ]
 
+const DANGER_TAB = { id: 'danger', label: 'Danger zone', danger: true }
+
 export default function SettingsPage() {
+  const { user, loading: authLoading } = useAuth()
+  const isSuperuser = !authLoading && user?.is_superuser === true
+  const settingsTabs = useMemo(
+    () => (isSuperuser ? [...SETTINGS_TABS_BASE, DANGER_TAB] : SETTINGS_TABS_BASE),
+    [isSuperuser],
+  )
   const { settings, setSettings } = useSettings()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -179,11 +187,16 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
+    if (!isSuperuser && activeTab === 'danger') setActiveTab('ai')
+  }, [isSuperuser, activeTab])
+
+  useEffect(() => {
+    if (!isSuperuser) return
     api.reset
       .softDeletedCount()
       .then((r) => setSoftDeletedCount(typeof r?.count === 'number' ? r.count : 0))
       .catch(() => setSoftDeletedCount(null))
-  }, [])
+  }, [isSuperuser])
 
   const loadSoftDeletedList = () => {
     setSoftDeletedListLoading(true)
@@ -277,7 +290,7 @@ export default function SettingsPage() {
       <div className="app-split-panel mb-4">
         <aside className="app-split-panel__nav">
           <SideNav aria-label="Settings sections">
-            {SETTINGS_TABS.map(({ id, label, danger }) => (
+            {settingsTabs.map(({ id, label, danger }) => (
               <SideNav.Item
                 key={id}
                 active={activeTab === id}
@@ -582,7 +595,7 @@ export default function SettingsPage() {
                 </>
               )}
 
-              {activeTab === 'danger' && (
+              {isSuperuser && activeTab === 'danger' && (
                 <>
                   <div className="setting-block">
                     <div className="setting-block__title text-danger">Purge soft-deleted applications</div>

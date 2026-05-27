@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User
 from app.services.auth import decode_access_token
+from app.services.superuser import is_superuser
 
 
 def get_current_user(
@@ -31,3 +32,12 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="User not found.")
 
     return user
+
+
+def get_superuser(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Require authenticated superuser (email in SUPERUSER_EMAILS)."""
+    if not is_superuser(current_user):
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    return current_user

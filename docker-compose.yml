@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=sqlite:///./storage/db/job_tracking.db
       - STORAGE_PATH=./storage
@@ -16,6 +18,7 @@ services:
       - BACKEND_URL=${BACKEND_URL:-http://localhost:8000}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
       - SECRETS_ENCRYPTION_KEY=${SECRETS_ENCRYPTION_KEY:-}
+      - SUPERUSER_EMAILS=${SUPERUSER_EMAILS:-}
     volumes:
       - ./storage:/app/storage
       - ./backend/app:/app/app

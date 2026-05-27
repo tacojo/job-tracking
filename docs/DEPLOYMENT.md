@@ -81,6 +81,7 @@ Fix any errors before the real cutover.
 | `FRONTEND_URL` | `https://your-app.onrender.com` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | production OAuth |
 | `SECRETS_ENCRYPTION_KEY` | Fernet key — required for per-user OpenAI keys (generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`) |
+| `SUPERUSER_EMAILS` | Comma-separated Google account emails allowed to use **Settings → Danger zone** (`/api/reset/*`) |
 
 Each user adds their own OpenAI key in the app under **Settings → AI settings**. Recommend a **dedicated test key** ([platform.openai.com/api-keys](https://platform.openai.com/api-keys)) that they revoke on OpenAI and remove in Settings when finished — not a long-lived production key.
 

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.services.auth import create_access_token, get_or_create_user
+from app.services.superuser import is_superuser
 
 router = APIRouter(tags=["auth"])
 
@@ -98,6 +99,7 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
         "email": user.email,
         "name": user.name,
         "picture": user.picture,
+        "is_superuser": is_superuser(user),
     }
 
 

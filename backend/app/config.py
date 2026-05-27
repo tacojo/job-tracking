@@ -64,13 +64,20 @@ class Settings(BaseSettings):
     # Dev: bypass Google auth for local testing
     bypass_auth: bool = False
 
+    # Comma-separated emails allowed to use Settings danger zone (/api/reset/*)
+    superuser_emails: str = ""
+
     # Fernet key for encrypting user_secrets at rest (generate with cryptography.fernet.Fernet)
     secrets_encryption_key: str = ""
 
     # OpenAI model name (read-only in UI); API keys are per-user in user_secrets
     openai_model: str = "gpt-4o-mini"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+    model_config = {
+        "env_file": (".env", "../.env"),
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 settings = Settings()

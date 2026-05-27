@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
+import SuperuserRoute from './components/SuperuserRoute'
 import AnalyticsPage from './pages/AnalyticsPage'
 import ApplicationDetailPage from './pages/ApplicationDetailPage'
 import ApplicationsPage from './pages/ApplicationsPage'
@@ -151,11 +152,11 @@ export default function App() {
           <Route
             path="/project-log"
             element={
-              <ProtectedRoute>
+              <SuperuserRoute>
                 <Layout>
                   <ProjectLogPage />
                 </Layout>
-              </ProtectedRoute>
+              </SuperuserRoute>
             }
           />
           <Route path="*" element={<Navigate to="/applications" replace />} />
