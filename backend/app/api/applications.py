@@ -131,7 +131,10 @@ def list_applications(
             # Include applications that reached this stage at any point.
             subq = (
                 db.query(Stage.application_id)
-                .filter(Stage.stage_type == stage)
+                .filter(
+                    Stage.stage_type == stage,
+                    Stage.user_id == current_user.id,
+                )
                 .distinct()
             )
             q = q.filter(Application.id.in_(subq))
@@ -193,7 +196,12 @@ def create_application(
         )
     if data.job_url:
         db.add(
-            JobDescription(application_id=app.id, text=None, source_url=data.job_url)
+            JobDescription(
+                application_id=app.id,
+                user_id=current_user.id,
+                text=None,
+                source_url=data.job_url,
+            )
         )
     db.commit()
     db.refresh(app)
@@ -377,7 +385,13 @@ def update_application(
                 app.job_description.source_url = d["job_url"] or None
         elif text_val or url_val:
             db.add(
-                JobDescription(application_id=app.id, text=text_val, source_url=url_val)
+                JobDescription(
+                    application_id=app.id,
+                    user_id=current_user.id,
+                    text=text_val,
+                    source_url=url_val,
+                    created_by=current_user.id,
+                )
             )
     db.commit()
     db.refresh(app)

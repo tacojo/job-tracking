@@ -9,9 +9,13 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.config import settings
 from app.db import get_db
-from app.models import AiPrompt, CoverLetterVersion, CVVersion, ProspectQuestion, User
+from app.models import CoverLetterVersion, CVVersion, ProspectQuestion, User
 from app.services import storage
 from app.services.text_extract import extract_text
+from app.services.user_defaults import (
+    ensure_user_prospect_questions,
+    get_ai_prompt,
+)
 
 router = APIRouter(prefix="/api/prospect", tags=["prospect"])
 
@@ -36,11 +40,6 @@ DEFAULT_PROSPECT_ANSWER = (
     "If you cannot confidently infer the company name, use a clear placeholder such as [[COMPANY_NAME]] so the user can replace it. "
     "Do not exaggerate. Output only the answer text, no preamble or labels."
 )
-
-
-def _get_prompt(db: Session, key: str, default: str) -> str:
-    row = db.query(AiPrompt).filter(AiPrompt.key == key).first()
-    return (row.value or "").strip() or default
 
 
 class TailorRequest(BaseModel):
@@ -147,13 +146,18 @@ def do_tailor(
     tailored_cover_letter: Optional[str] = None
 
     if cv_text:
-        system_prompt = _get_prompt(db, "tailor_cv", DEFAULT_TAILOR_CV)
+        system_prompt = get_ai_prompt(
+            db, current_user.id, "tailor_cv", DEFAULT_TAILOR_CV
+        )
         user_content = f"Job spec:\n{job_spec}\n\nCurrent CV:\n{cv_text}"
         tailored_cv = _call_openai(system_prompt, user_content)
 
     if cl_text:
-        system_prompt = _get_prompt(
-            db, "tailor_cover_letter", DEFAULT_TAILOR_COVER_LETTER
+        system_prompt = get_ai_prompt(
+            db,
+            current_user.id,
+            "tailor_cover_letter",
+            DEFAULT_TAILOR_COVER_LETTER,
         )
         user_content = f"Job spec:\n{job_spec}\n\nCurrent cover letter:\n{cl_text}"
         tailored_cover_letter = _call_openai(system_prompt, user_content)
@@ -181,9 +185,11 @@ def list_prospect_questions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List prospect questions (editable in DB). Ordered by sort_order."""
+    """List prospect questions for the current user. Ordered by sort_order."""
+    ensure_user_prospect_questions(db, current_user.id)
     questions = (
         db.query(ProspectQuestion)
+        .filter(ProspectQuestion.user_id == current_user.id)
         .order_by(ProspectQuestion.sort_order, ProspectQuestion.id)
         .all()
     )
@@ -202,7 +208,10 @@ def generate_prospect_answer(
     """Generate an AI answer for a prospect question using British English, simple and natural tone."""
     question = (
         db.query(ProspectQuestion)
-        .filter(ProspectQuestion.id == data.question_id)
+        .filter(
+            ProspectQuestion.id == data.question_id,
+            ProspectQuestion.user_id == current_user.id,
+        )
         .first()
     )
     if not question:
@@ -236,7 +245,9 @@ def generate_prospect_answer(
             content = storage.read_file(cl.file_path)
             cl_text = extract_text(content, cl.file_type) or ""
 
-    system_prompt = _get_prompt(db, "prospect_answer", DEFAULT_PROSPECT_ANSWER)
+    system_prompt = get_ai_prompt(
+        db, current_user.id, "prospect_answer", DEFAULT_PROSPECT_ANSWER
+    )
     context_parts = [f"Job spec:\n{job_spec}"]
     if cv_text:
         context_parts.append(f"Candidate's CV:\n{cv_text}")

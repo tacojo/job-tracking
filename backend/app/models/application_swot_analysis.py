@@ -20,6 +20,9 @@ class ApplicationSwotAnalysis(Base):
         nullable=False,
         index=True,
     )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     strengths = Column(Text, nullable=False)  # JSON array stored as text
     weaknesses = Column(Text, nullable=False)  # JSON array stored as text
     opportunities = Column(Text, nullable=False)  # JSON array stored as text

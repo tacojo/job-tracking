@@ -8,6 +8,7 @@ from app.api.deps import get_current_user
 from app.config import settings
 from app.db import get_db
 from app.models import AiPrompt, User
+from app.services.user_defaults import ensure_user_ai_prompts
 
 router = APIRouter(prefix="/api/settings/ai", tags=["ai-settings"])
 
@@ -32,8 +33,15 @@ class AiSettingsUpdate(BaseModel):
     prompts: dict[str, str]
 
 
-def _prompts_from_db(db: Session) -> dict[str, str]:
-    rows = db.query(AiPrompt).filter(AiPrompt.key.in_(PROMPT_KEYS)).all()
+def _prompts_from_db(db: Session, user_id: int) -> dict[str, str]:
+    rows = (
+        db.query(AiPrompt)
+        .filter(
+            AiPrompt.user_id == user_id,
+            AiPrompt.key.in_(PROMPT_KEYS),
+        )
+        .all()
+    )
     return {r.key: r.value for r in rows}
 
 
@@ -43,7 +51,8 @@ def get_ai_settings(
     current_user: User = Depends(get_current_user),
 ):
     """Return AI model (read-only) and current prompts for editing."""
-    prompts = _prompts_from_db(db)
+    ensure_user_ai_prompts(db, current_user.id)
+    prompts = _prompts_from_db(db, current_user.id)
     for key in PROMPT_KEYS:
         if key not in prompts:
             prompts[key] = ""
@@ -57,21 +66,27 @@ def update_ai_settings(
     current_user: User = Depends(get_current_user),
 ):
     """Update AI prompts. Only provided keys are updated."""
+    user_id = current_user.id
     if not data.prompts:
+        ensure_user_ai_prompts(db, user_id)
         return AiSettingsResponse(
-            model=settings.openai_model, prompts=_prompts_from_db(db)
+            model=settings.openai_model, prompts=_prompts_from_db(db, user_id)
         )
     for key in data.prompts:
         if key not in PROMPT_KEYS:
             raise HTTPException(status_code=400, detail=f"Unknown prompt key: {key}")
     for key, value in data.prompts.items():
-        row = db.query(AiPrompt).filter(AiPrompt.key == key).first()
+        row = (
+            db.query(AiPrompt)
+            .filter(AiPrompt.user_id == user_id, AiPrompt.key == key)
+            .first()
+        )
         if row:
             row.value = value or ""
         else:
-            db.add(AiPrompt(key=key, value=value or ""))
+            db.add(AiPrompt(user_id=user_id, key=key, value=value or ""))
     db.commit()
-    prompts = _prompts_from_db(db)
+    prompts = _prompts_from_db(db, user_id)
     for key in PROMPT_KEYS:
         if key not in prompts:
             prompts[key] = ""

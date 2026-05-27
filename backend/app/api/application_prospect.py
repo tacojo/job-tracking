@@ -128,7 +128,10 @@ def list_prospect_answers(
     app = _resolve_app(db, app_id, current_user.id)
     rows = (
         db.query(ApplicationProspectAnswer)
-        .filter(ApplicationProspectAnswer.application_id == app.id)
+        .filter(
+            ApplicationProspectAnswer.application_id == app.id,
+            ApplicationProspectAnswer.user_id == current_user.id,
+        )
         .order_by(ApplicationProspectAnswer.sort_order, ApplicationProspectAnswer.id)
         .all()
     )
@@ -148,13 +151,15 @@ def save_prospect_answers(
     app = _resolve_app(db, app_id, current_user.id)
     # Delete existing
     db.query(ApplicationProspectAnswer).filter(
-        ApplicationProspectAnswer.application_id == app.id
+        ApplicationProspectAnswer.application_id == app.id,
+        ApplicationProspectAnswer.user_id == current_user.id,
     ).delete()
     # Insert new rows
     result = []
     for i, item in enumerate(data.items):
         row = ApplicationProspectAnswer(
             application_id=app.id,
+            user_id=current_user.id,
             question=(item.question or "").strip() or "(Question)",
             answer=(item.answer or "").strip() or None,
             sort_order=i,
@@ -170,12 +175,15 @@ def save_prospect_answers(
     ]
 
 
-def _next_version_for_doc_type(db: Session, application_id: int, doc_type: str) -> int:
+def _next_version_for_doc_type(
+    db: Session, application_id: int, doc_type: str, user_id: int
+) -> int:
     max_ver = (
         db.query(ApplicationDocument.version)
         .filter(
             ApplicationDocument.application_id == application_id,
             ApplicationDocument.doc_type == doc_type,
+            ApplicationDocument.user_id == user_id,
         )
         .order_by(ApplicationDocument.version.desc())
         .first()
@@ -247,6 +255,7 @@ def tailor_for_application(
             .filter(
                 ApplicationDocument.application_id == app.id,
                 ApplicationDocument.doc_type == "jd",
+                ApplicationDocument.user_id == current_user.id,
             )
             .order_by(ApplicationDocument.version.desc())
             .first()
@@ -319,7 +328,7 @@ def save_tailored_docx(
             profile_data, (data.tailored_cv or "").strip(), data.cv_template
         )
         filename = "tailored_cv.docx"
-        version = _next_version_for_doc_type(db, app.id, "tailored_cv")
+        version = _next_version_for_doc_type(db, app.id, "tailored_cv", current_user.id)
         storage_path = app_document_storage.save_document(
             user_id=current_user.id,
             app_uuid=app.uuid,
@@ -329,6 +338,7 @@ def save_tailored_docx(
         )
         doc = ApplicationDocument(
             application_id=app.id,
+            user_id=current_user.id,
             doc_type="tailored_cv",
             version=version,
             filename=filename,
@@ -345,7 +355,9 @@ def save_tailored_docx(
     if data.tailored_cover_letter:
         docx_bytes = create_docx_from_text((data.tailored_cover_letter or "").strip())
         filename = "tailored_cover_letter.docx"
-        version = _next_version_for_doc_type(db, app.id, "tailored_cover_letter")
+        version = _next_version_for_doc_type(
+            db, app.id, "tailored_cover_letter", current_user.id
+        )
         storage_path = app_document_storage.save_document(
             user_id=current_user.id,
             app_uuid=app.uuid,
@@ -355,6 +367,7 @@ def save_tailored_docx(
         )
         doc = ApplicationDocument(
             application_id=app.id,
+            user_id=current_user.id,
             doc_type="tailored_cover_letter",
             version=version,
             filename=filename,
@@ -406,6 +419,7 @@ def set_job_spec_from_text(
     else:
         jd = JobDescription(
             application_id=app.id,
+            user_id=current_user.id,
             text=text,
             source_url=None,
             created_by=current_user.id,
@@ -413,7 +427,7 @@ def set_job_spec_from_text(
         db.add(jd)
 
     # Create a JD ApplicationDocument (txt) so it shows in attachments
-    version = _next_version_for_doc_type(db, app.id, "jd")
+    version = _next_version_for_doc_type(db, app.id, "jd", current_user.id)
     content_bytes = text.encode("utf-8")
     storage_path = app_document_storage.save_document(
         user_id=current_user.id,
@@ -424,6 +438,7 @@ def set_job_spec_from_text(
     )
     doc = ApplicationDocument(
         application_id=app.id,
+        user_id=current_user.id,
         doc_type="jd",
         version=version,
         filename="job_spec.txt",
@@ -556,6 +571,7 @@ def generate_swot_analysis(
             .filter(
                 ApplicationDocument.application_id == app.id,
                 ApplicationDocument.doc_type == "jd",
+                ApplicationDocument.user_id == current_user.id,
             )
             .order_by(ApplicationDocument.version.desc())
             .first()
@@ -828,7 +844,10 @@ def save_swot_analysis(
     # Check if analysis already exists for this application
     existing = (
         db.query(ApplicationSwotAnalysis)
-        .filter(ApplicationSwotAnalysis.application_id == app.id)
+        .filter(
+            ApplicationSwotAnalysis.application_id == app.id,
+            ApplicationSwotAnalysis.user_id == current_user.id,
+        )
         .first()
     )
 
@@ -846,6 +865,7 @@ def save_swot_analysis(
         # Create new analysis
         saved_analysis = ApplicationSwotAnalysis(
             application_id=app.id,
+            user_id=current_user.id,
             strengths=json.dumps(data.strengths),
             weaknesses=json.dumps(data.weaknesses),
             opportunities=json.dumps(data.opportunities),
@@ -881,7 +901,10 @@ def get_saved_swot_analysis(
 
     saved_analysis = (
         db.query(ApplicationSwotAnalysis)
-        .filter(ApplicationSwotAnalysis.application_id == app.id)
+        .filter(
+            ApplicationSwotAnalysis.application_id == app.id,
+            ApplicationSwotAnalysis.user_id == current_user.id,
+        )
         .first()
     )
 

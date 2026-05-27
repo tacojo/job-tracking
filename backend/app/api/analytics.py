@@ -82,7 +82,9 @@ def _base_query(
         q = q.filter(func.date(Application.created_at) <= date_to)
     if stage:
         subq = (
-            db.query(Stage.application_id).filter(Stage.stage_type == stage).distinct()
+            db.query(Stage.application_id)
+            .filter(Stage.stage_type == stage, Stage.user_id == user_id)
+            .distinct()
         )
         q = q.filter(Application.id.in_(subq))
     return q
@@ -223,7 +225,7 @@ def _compute_analytics(
         if stage:
             subq = (
                 db.query(Stage.application_id)
-                .filter(Stage.stage_type == stage)
+                .filter(Stage.stage_type == stage, Stage.user_id == user_id)
                 .distinct()
             )
             ts_q = ts_q.filter(Application.id.in_(subq))

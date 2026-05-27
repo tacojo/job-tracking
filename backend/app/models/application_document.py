@@ -29,6 +29,9 @@ class ApplicationDocument(Base):
         nullable=False,
         index=True,
     )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     doc_type = Column(String(50), nullable=False)  # cv, cover_letter, jd, test, other
     version = Column(Integer, nullable=False, default=1)

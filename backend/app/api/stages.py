@@ -51,7 +51,14 @@ def list_stages(
 ):
     """List stages for an application, ordered by pipeline lineage."""
     _get_application_or_404(db, application_id, current_user.id)
-    stages = db.query(Stage).filter(Stage.application_id == application_id).all()
+    stages = (
+        db.query(Stage)
+        .filter(
+            Stage.application_id == application_id,
+            Stage.user_id == current_user.id,
+        )
+        .all()
+    )
     return sorted(
         stages,
         key=lambda s: (s.scheduled_at or s.created_at, _stage_order_idx(s.stage_type)),
@@ -71,7 +78,10 @@ def create_stage(
     _get_application_or_404(db, application_id, current_user.id)
     existing = (
         db.query(Stage)
-        .filter(Stage.application_id == application_id)
+        .filter(
+            Stage.application_id == application_id,
+            Stage.user_id == current_user.id,
+        )
         .order_by(Stage.scheduled_at.asc(), Stage.created_at.asc())
         .all()
     )
@@ -177,7 +187,7 @@ def create_stage(
         and dump["scheduled_at"].tzinfo is not None
     ):
         dump["scheduled_at"] = dump["scheduled_at"].replace(tzinfo=None)
-    stage = Stage(application_id=application_id, **dump)
+    stage = Stage(application_id=application_id, user_id=current_user.id, **dump)
     db.add(stage)
     db.commit()
     db.refresh(stage)
@@ -206,7 +216,11 @@ def update_stage(
     stage = (
         db.query(Stage)
         .join(Application)
-        .filter(Stage.id == stage_id, Application.user_id == current_user.id)
+        .filter(
+            Stage.id == stage_id,
+            Application.user_id == current_user.id,
+            Stage.user_id == current_user.id,
+        )
         .first()
     )
     if not stage:
@@ -233,7 +247,12 @@ def update_stage(
     new_scheduled_at = update_data.get("scheduled_at", stage.scheduled_at)
     if new_scheduled_at is not None:
         all_stages = (
-            db.query(Stage).filter(Stage.application_id == stage.application_id).all()
+            db.query(Stage)
+            .filter(
+                Stage.application_id == stage.application_id,
+                Stage.user_id == current_user.id,
+            )
+            .all()
         )
 
         def _get_dt(s):
@@ -286,7 +305,11 @@ def delete_stage(
     stage = (
         db.query(Stage)
         .join(Application)
-        .filter(Stage.id == stage_id, Application.user_id == current_user.id)
+        .filter(
+            Stage.id == stage_id,
+            Application.user_id == current_user.id,
+            Stage.user_id == current_user.id,
+        )
         .first()
     )
     if not stage:

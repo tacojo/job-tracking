@@ -14,7 +14,6 @@ from app.api.deps import get_current_user
 from app.config import settings
 from app.db import get_db
 from app.models import (
-    AiPrompt,
     ConceptRelationship,
     LearningConcept,
     LearningItem,
@@ -62,6 +61,7 @@ from app.schemas.learning import (
     ReviewRecordRequest,
     TagRead,
 )
+from app.services.user_defaults import get_ai_prompt
 
 router = APIRouter(prefix="/api/learning", tags=["learning"])
 
@@ -213,13 +213,6 @@ def _answer_readable_line_breaks(text: str | None) -> str:
     if len(sub) > 1:
         return "\n".join(sub)
     return condensed
-
-
-def _get_prompt(db: Session, key: str, default: str) -> str:
-    row = db.query(AiPrompt).filter(AiPrompt.key == key).first()
-    if row is None:
-        return default
-    return (row.value or "").strip() or default
 
 
 def _call_openai_text(system_prompt: str, user_content: str) -> str:
@@ -990,8 +983,9 @@ def _run_ai_suggest_edges_for_item(db: Session, user_id: int, item_id: int) -> i
             ),
         }
 
-        system = _get_prompt(
+        system = get_ai_prompt(
             db,
+            user_id,
             "learning_suggest_edges_on_save",
             DEFAULT_LEARNING_SUGGEST_EDGES_ON_SAVE,
         )
@@ -1466,14 +1460,16 @@ def ai_refresh_item(
 ):
     item = _get_item_owned(db, current_user.id, item_id)
     if item.type == "flashcard":
-        system = _get_prompt(
+        system = get_ai_prompt(
             db,
+            current_user.id,
             "learning_refresh_flashcard",
             DEFAULT_LEARNING_REFRESH_FLASHCARD,
         )
     elif item.type == "note":
-        system = _get_prompt(
+        system = get_ai_prompt(
             db,
+            current_user.id,
             "learning_refresh_note",
             DEFAULT_LEARNING_REFRESH_NOTE,
         )
@@ -1599,8 +1595,8 @@ def _run_ai_extract_concepts(
         ),
     }
 
-    system = _get_prompt(
-        db, "learning_extract_concepts", DEFAULT_LEARNING_EXTRACT_CONCEPTS
+    system = get_ai_prompt(
+        db, user_id, "learning_extract_concepts", DEFAULT_LEARNING_EXTRACT_CONCEPTS
     )
     raw = _call_openai_json(system, json.dumps(user_obj, ensure_ascii=False))
     try:
@@ -1826,7 +1822,7 @@ def learning_ask(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    system = _get_prompt(db, "learning_ask", DEFAULT_LEARNING_ASK)
+    system = get_ai_prompt(db, current_user.id, "learning_ask", DEFAULT_LEARNING_ASK)
     extra = ""
     if data.context_item_id is not None:
         item = _get_item_owned(db, current_user.id, data.context_item_id)
@@ -1847,7 +1843,9 @@ def generate_flashcards(
     current_user: User = Depends(get_current_user),
 ):
     """Bulk-generate drafts, then run the same extract-concepts AI on each draft (attachments + broad_tags)."""
-    system = _get_prompt(db, "learning_generate_flashcards", DEFAULT_LEARNING_GENERATE)
+    system = get_ai_prompt(
+        db, current_user.id, "learning_generate_flashcards", DEFAULT_LEARNING_GENERATE
+    )
     target_nl = _resolve_notion_level(data.target_notion_level)
     user_msg = (
         f"Topic: {data.topic.strip()}\n"

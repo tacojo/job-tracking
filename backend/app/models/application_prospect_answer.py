@@ -20,6 +20,9 @@ class ApplicationProspectAnswer(Base):
         nullable=False,
         index=True,
     )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     question = Column(String(512), nullable=False)
     answer = Column(Text, nullable=True)
     sort_order = Column(Integer, nullable=False, default=0)

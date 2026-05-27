@@ -17,6 +17,9 @@ class Stage(Base):
     application_id = Column(
         Integer, ForeignKey("applications.id", ondelete="CASCADE"), nullable=False
     )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     stage_type = Column(
         String(50), nullable=False, index=True
     )  # APPLIED, RECRUITER_CALL, STAGE_1..5, OFFER, REJECTED
