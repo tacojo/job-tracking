@@ -1,24 +1,33 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useAuth } from '../contexts/AuthContext'
 import { faRightFromBracket } from './ui/icons'
 import { NavBrand, ThemeToggleButton } from './ui'
 
-const NAV_LINKS = [
+const NAV_LINKS_BASE = [
   { to: '/analytics', label: 'Analytics' },
   { to: '/applications', label: 'Applications' },
   { to: '/recruiters', label: 'Recruiters' },
   { to: '/companies', label: 'Companies' },
   { to: '/cvs', label: 'My CVs' },
   { to: '/prospect', label: 'Prospect' },
-  { to: '/project-log', label: 'Project log' },
   { to: '/learning', label: 'Learning' },
   { to: '/settings', label: 'Settings' },
 ]
 
+const PROJECT_LOG_LINK = { to: '/project-log', label: 'Project log' }
+
 export default function Layout({ children }) {
-  const { user, logout } = useAuth()
+  const { user, logout, loading: authLoading } = useAuth()
+  const isSuperuser = !authLoading && user?.is_superuser === true
+  const navLinks = useMemo(() => {
+    if (!isSuperuser) return NAV_LINKS_BASE
+    const links = [...NAV_LINKS_BASE]
+    const learningIdx = links.findIndex((l) => l.to === '/learning')
+    links.splice(learningIdx, 0, PROJECT_LOG_LINK)
+    return links
+  }, [isSuperuser])
   const [navOpen, setNavOpen] = useState(false)
 
   const closeNav = () => setNavOpen(false)
@@ -39,7 +48,7 @@ export default function Layout({ children }) {
           </button>
           <div className={`collapse navbar-collapse ${navOpen ? 'show' : ''}`}>
             <div className="navbar-nav ms-auto align-items-lg-center gap-lg-0">
-              {NAV_LINKS.map(({ to, label }) => (
+              {navLinks.map(({ to, label }) => (
                 <Link key={to} className="nav-link" to={to} onClick={closeNav}>
                   {label}
                 </Link>

@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_current_user
+from app.api.deps import get_superuser
 from app.db import get_db
 from app.models import (
     Application,
@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api", tags=["reset"])
 @router.get("/reset/soft-deleted-count", response_model=SoftDeletedCountResponse)
 def soft_deleted_application_count(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_superuser),
 ):
     """How many applications are soft-deleted for the current user."""
     n = (
@@ -53,7 +53,7 @@ def soft_deleted_application_count(
 @router.get("/reset/soft-deleted", response_model=SoftDeletedListResponse)
 def list_soft_deleted_applications(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_superuser),
 ):
     """List soft-deleted applications (for review before purge)."""
     apps = (
@@ -84,7 +84,7 @@ def list_soft_deleted_applications(
 @router.post("/reset/purge-soft-deleted", response_model=PurgeSoftDeletedResponse)
 def purge_soft_deleted_applications(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_superuser),
 ):
     """
     Permanently remove soft-deleted applications (deleted_at set) and their files.
@@ -114,7 +114,7 @@ def purge_soft_deleted_applications(
 @router.post("/reset/clear-learning", response_model=ClearLearningCentreResponse)
 def clear_learning_centre(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_superuser),
 ):
     """
     Permanently delete all Learning Centre data for this account: flashcards, notes,
@@ -133,7 +133,7 @@ def clear_learning_centre(
 @router.post("/reset", response_model=ResetAllResponse)
 def reset_all_data(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_superuser),
 ):
     """
     Wipe all data for the current user: applications (including soft-deleted rows),

@@ -20,6 +20,17 @@ def test_me_with_bearer_token(client, auth_headers):
     data = r.json()
     assert data["email"] == "dev@local.test"
     assert "id" in data
+    assert data["is_superuser"] is True
+
+
+def test_reset_soft_deleted_count_forbidden_without_superuser(
+    client, auth_headers, monkeypatch
+):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "superuser_emails", "")
+    r = client.get("/api/reset/soft-deleted-count", headers=auth_headers)
+    assert r.status_code == 403
 
 
 def test_applications_requires_authentication(client):
