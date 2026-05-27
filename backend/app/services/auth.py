@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import User
+from app.services.user_defaults import ensure_user_defaults
 
 
 def create_access_token(user_id: int) -> str:
@@ -43,9 +44,11 @@ def get_or_create_user(
         user.picture = picture
         db.commit()
         db.refresh(user)
+        ensure_user_defaults(db, user.id)
         return user
     user = User(google_id=google_id, email=email, name=name, picture=picture)
     db.add(user)
     db.commit()
     db.refresh(user)
+    ensure_user_defaults(db, user.id)
     return user

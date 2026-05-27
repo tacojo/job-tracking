@@ -21,6 +21,9 @@ class JobDescription(Base):
         unique=True,
         index=True,
     )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     text = Column(Text, nullable=True)
     source_url = Column(String(500), nullable=True)  # URL of job post
     version = Column(

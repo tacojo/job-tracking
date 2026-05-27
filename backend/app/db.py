@@ -107,9 +107,132 @@ def init_db():
         run_alembic_upgrade()
     else:
         _sqlite_only_migrations()
+        _migrate_ai_prospect_user_id()
+        _migrate_application_child_user_id()
 
-    _seed_prospect_questions()
-    _seed_ai_prompts()
+
+def _migrate_application_child_user_id() -> None:
+    """Add user_id to application child tables (legacy SQLite databases)."""
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    if "application_documents" not in tables:
+        return
+    cols = {c["name"] for c in inspector.get_columns("application_documents")}
+    if "user_id" in cols:
+        return
+
+    child_tables = (
+        "application_documents",
+        "application_events",
+        "application_job_descriptions",
+        "application_prospect_answers",
+        "application_swot_analyses",
+    )
+    with engine.connect() as conn:
+        for table in child_tables:
+            if table not in tables:
+                continue
+            conn.execute(
+                text(
+                    f"ALTER TABLE {table} ADD COLUMN user_id INTEGER "
+                    "REFERENCES users(id) ON DELETE CASCADE"
+                )
+            )
+            conn.execute(
+                text(
+                    f"""
+                    UPDATE {table}
+                    SET user_id = (
+                        SELECT applications.user_id
+                        FROM applications
+                        WHERE applications.id = {table}.application_id
+                    )
+                    """
+                )
+            )
+            conn.execute(text(f"DELETE FROM {table} WHERE user_id IS NULL"))
+            conn.execute(text(f"CREATE INDEX ix_{table}_user_id ON {table} (user_id)"))
+        conn.commit()
+
+
+def _migrate_ai_prospect_user_id() -> None:
+    """Scope ai_prompts and prospect_questions to users (legacy SQLite databases)."""
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    if "ai_prompts" not in tables or "prospect_questions" not in tables:
+        return
+    ai_cols = {c["name"] for c in inspector.get_columns("ai_prompts")}
+    if "user_id" in ai_cols:
+        return
+
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE ai_prompts ADD COLUMN user_id INTEGER "
+                "REFERENCES users(id) ON DELETE CASCADE"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE prospect_questions ADD COLUMN user_id INTEGER "
+                "REFERENCES users(id) ON DELETE CASCADE"
+            )
+        )
+        user_ids = [
+            row[0] for row in conn.execute(text("SELECT id FROM users")).fetchall()
+        ]
+        legacy_prompts = [
+            (row[0], row[1])
+            for row in conn.execute(
+                text("SELECT key, value FROM ai_prompts")
+            ).fetchall()
+        ]
+        legacy_questions = [
+            (row[0], row[1])
+            for row in conn.execute(
+                text("SELECT question_text, sort_order FROM prospect_questions")
+            ).fetchall()
+        ]
+        conn.execute(text("DELETE FROM ai_prompts"))
+        conn.execute(text("DELETE FROM prospect_questions"))
+        for user_id in user_ids:
+            for key, value in legacy_prompts:
+                conn.execute(
+                    text(
+                        "INSERT INTO ai_prompts (key, value, user_id) "
+                        "VALUES (:key, :value, :user_id)"
+                    ),
+                    {"key": key, "value": value, "user_id": user_id},
+                )
+            for question_text, sort_order in legacy_questions:
+                conn.execute(
+                    text(
+                        "INSERT INTO prospect_questions "
+                        "(question_text, sort_order, user_id) "
+                        "VALUES (:question_text, :sort_order, :user_id)"
+                    ),
+                    {
+                        "question_text": question_text,
+                        "sort_order": sort_order,
+                        "user_id": user_id,
+                    },
+                )
+        conn.execute(text("DROP INDEX IF EXISTS ix_ai_prompts_key"))
+        conn.execute(text("CREATE INDEX ix_ai_prompts_key ON ai_prompts (key)"))
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX uq_ai_prompts_user_key "
+                "ON ai_prompts (user_id, key)"
+            )
+        )
+        conn.execute(text("CREATE INDEX ix_ai_prompts_user_id ON ai_prompts (user_id)"))
+        conn.execute(
+            text(
+                "CREATE INDEX ix_prospect_questions_user_id "
+                "ON prospect_questions (user_id)"
+            )
+        )
+        conn.commit()
 
 
 def _migrate_stages_to_application_events():
@@ -286,84 +409,3 @@ def _migrate_learning_items_notion_level() -> None:
             )
         )
         conn.commit()
-
-
-def _seed_prospect_questions():
-    """Insert default prospect questions if the table is empty (editable later in DB)."""
-    from app.models.prospect_question import ProspectQuestion
-
-    with SessionLocal() as db:
-        if db.query(ProspectQuestion).first() is not None:
-            return
-        defaults = [
-            (0, "Brief introduction of yourself"),
-            (1, "Brief introduction of the current role"),
-            (2, "Summary of relevant experience aligned to the role requirements"),
-            (3, "Relevant industry or domain experience"),
-            (4, "Motivation for the move / why interested in this role"),
-        ]
-        for sort_order, question_text in defaults:
-            db.add(ProspectQuestion(question_text=question_text, sort_order=sort_order))
-        db.commit()
-
-
-def _seed_ai_prompts():
-    """Insert default AI prompts if not present (editable on Settings page)."""
-    from app.models.ai_prompt import AiPrompt
-
-    defaults = {
-        "tailor_cv": (
-            "You are a professional career adviser. Use British English spelling and terminology. "
-            "You are requested to tailor the candidate's CV to the job and company. "
-            "Keep the same facts and experience; rephrase and reorder for relevance. "
-            "Do not exaggerate, do not add skills they do not have, or change dates or job titles. "
-            "Output only the tailored CV text (no preamble)."
-        ),
-        "tailor_cover_letter": (
-            "You are a professional career adviser. Use British English spelling and terminology. "
-            "Tailor the candidate's cover letter to the job and company. "
-            "Keep the same experience and tone; adjust wording and emphasis for relevance. Do not exaggerate. "
-            "Output only the tailored cover letter text (no preamble)."
-        ),
-        "prospect_answer": (
-            "You are helping a job candidate prepare answers for applications and interviews. "
-            "Write in British English. Use a simple, natural tone — conversational and genuine, not formal or stiff. "
-            "Base your answer on the context provided (CV, cover letter, company, job spec). "
-            "Do not exaggerate. Output only the answer text, no preamble or labels."
-        ),
-        "learning_ask": (
-            "You are a patient technical tutor helping someone prepare for interviews and on-the-job depth. "
-            "Use British English. Be concrete; use short paragraphs. "
-            "If asked something shallow, still add one practical angle or failure mode. "
-            "Output plain text only — no markdown headings, no preamble."
-        ),
-        "learning_generate_flashcards": (
-            "You create interview-practice flashcards in British English. "
-            'Reply with one JSON object only, with key "flashcards" (array). '
-            "Each element must have fields like question, answer, learning_goal, expected_depth, common_mistake, "
-            'example, related_to, plus "notion_level" as exactly one of: elementary, intermediate, expert '
-            "(demanding-ness of the main idea—foundational vs typical practitioner depth vs niche or harsh trade-offs)."
-        ),
-        "learning_refresh_flashcard": (
-            "You improve one existing interview-prep flashcard. Use British English. "
-            'Reply with one JSON object only. Keys include: "question", "answer", optional rich strings '
-            '"learning_goal", "expected_depth", "common_mistake", "example", "related_to", and '
-            '"notion_level" (elementary | intermediate | expert) for how hard the main idea is. '
-            "Deepen thin answers; keep overall topic unless the card was wrong."
-        ),
-        "learning_refresh_note": (
-            "You improve one existing study note. Use British English, Markdown in body where useful. "
-            'Reply with one JSON object only with keys: "title" (string), "body_markdown" (string). '
-            "Clarify structure; preserve factual intent."
-        ),
-        "learning_extract_concepts": (
-            "You analyse interview-prep learning cards. Use British English in free-text fields. "
-            "Extract typed concepts, propose concept-to-concept edges (by id or name), suggest broad_tags "
-            "for library filtering, and optional graph links. Output one JSON object only."
-        ),
-    }
-    with SessionLocal() as db:
-        for key, value in defaults.items():
-            if db.query(AiPrompt).filter(AiPrompt.key == key).first() is None:
-                db.add(AiPrompt(key=key, value=value))
-        db.commit()

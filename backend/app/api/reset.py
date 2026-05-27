@@ -138,7 +138,7 @@ def reset_all_data(
     """
     Wipe all data for the current user: applications (including soft-deleted rows),
     companies, recruiters, roles, CV profile/experience, projects, learning centre (tags, cards, reviews), uploads.
-    Backs up the SQLite DB file first when applicable. Keeps user account and AI prompts.
+    Keeps user account and per-user AI prompts / prospect questions.
     """
     user_id = current_user.id
 
@@ -193,6 +193,6 @@ def reset_all_data(
 
     db.commit()
     return ResetAllResponse(
-        message="Reset complete. Your account and server-side AI prompts are unchanged.",
+        message="Reset complete. Your account and AI prompt settings are unchanged.",
         backup=backup_model,
     )

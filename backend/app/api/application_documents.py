@@ -72,7 +72,10 @@ def list_documents(
     app = _resolve_app(db, app_id, current_user.id)
     docs = (
         db.query(ApplicationDocument)
-        .filter(ApplicationDocument.application_id == app.id)
+        .filter(
+            ApplicationDocument.application_id == app.id,
+            ApplicationDocument.user_id == current_user.id,
+        )
         .order_by(
             ApplicationDocument.doc_type,
             ApplicationDocument.version,
@@ -112,6 +115,7 @@ def upload_document(
         .filter(
             ApplicationDocument.application_id == app.id,
             ApplicationDocument.doc_type == doc_type,
+            ApplicationDocument.user_id == current_user.id,
         )
         .order_by(ApplicationDocument.version.desc())
         .first()
@@ -130,6 +134,7 @@ def upload_document(
 
     doc = ApplicationDocument(
         application_id=app.id,
+        user_id=current_user.id,
         doc_type=doc_type,
         version=version,
         filename=filename,
@@ -161,6 +166,7 @@ def get_document_file(
         .filter(
             ApplicationDocument.application_id == app.id,
             ApplicationDocument.uuid == doc_uuid,
+            ApplicationDocument.user_id == current_user.id,
         )
         .first()
     )
@@ -194,6 +200,7 @@ def replace_document(
         .filter(
             ApplicationDocument.application_id == app.id,
             ApplicationDocument.uuid == doc_uuid,
+            ApplicationDocument.user_id == current_user.id,
         )
         .first()
     )
@@ -241,6 +248,7 @@ def delete_document(
         .filter(
             ApplicationDocument.application_id == app.id,
             ApplicationDocument.uuid == doc_uuid,
+            ApplicationDocument.user_id == current_user.id,
         )
         .first()
     )
