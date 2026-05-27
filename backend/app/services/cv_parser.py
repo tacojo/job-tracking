@@ -4,17 +4,21 @@ import json
 import re
 from typing import Any
 
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
 from app.config import settings
+from app.services.openai_client import get_openai_client
 from app.services.text_extract import extract_text
 
 
-def _parse_with_openai(text: str) -> list[dict[str, Any]]:
+def _parse_with_openai(db: Session, user_id: int, text: str) -> list[dict[str, Any]]:
     """Use OpenAI to extract structured work experience from CV text."""
-    if not settings.openai_api_key:
+    try:
+        client = get_openai_client(db, user_id)
+    except HTTPException:
         return []
-    from openai import OpenAI
 
-    client = OpenAI(api_key=settings.openai_api_key)
     system_prompt = """You extract work experience from a CV/resume. Use British English spelling.
 Return a JSON array of objects.
 Each object must have: employer, role, start_date, end_date, location, employment_type, level, skills (array), details (array of bullet points).
@@ -26,7 +30,7 @@ location: e.g. "London, United Kingdom".
 Return ONLY valid JSON array, no other text."""
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=settings.openai_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {
@@ -129,7 +133,11 @@ def _parse_heuristic(text: str) -> list[dict[str, Any]]:
 
 
 def parse_cv(
-    content: bytes, file_type: str
+    content: bytes,
+    file_type: str,
+    *,
+    db: Session | None = None,
+    user_id: int | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     """
     Parse CV file into structured experience list and profile dict.
@@ -151,7 +159,9 @@ def parse_cv(
                 profile["tagline"] = line[:255]
                 break
 
-    experiences = _parse_with_openai(text)
+    experiences: list[dict[str, Any]] = []
+    if db is not None and user_id is not None:
+        experiences = _parse_with_openai(db, user_id, text)
     if not experiences:
         experiences = _parse_heuristic(text)
 

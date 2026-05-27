@@ -205,7 +205,9 @@ def parse_from_cv(
         raise HTTPException(status_code=404, detail="CV not found")
 
     content = storage.read_file(cv.file_path)
-    experiences, profile_data = parse_cv(content, cv.file_type)
+    experiences, profile_data = parse_cv(
+        content, cv.file_type, db=db, user_id=current_user.id
+    )
 
     # Update profile
     prof = _get_or_create_profile(db, current_user.id)

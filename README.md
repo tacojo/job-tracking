@@ -1,6 +1,6 @@
 # Job Tracker
 
-Manage CV versions and job applications with pipeline stages. Prospect answers, tailor CV and cover letters from job descriptions, and parse CVs with optional **OpenAI** when `OPENAI_API_KEY` is set.
+Manage CV versions and job applications with pipeline stages. Prospect answers, tailor CV and cover letters from job descriptions, and parse CVs with optional **OpenAI** when each user adds their API key in **Settings → AI settings**.
 
 ## Quick start (new clone)
 
@@ -61,7 +61,7 @@ API docs: **http://localhost:8000/docs**. Database readiness: **http://localhost
 | If you want… | Do this |
 |--------------|---------|
 | **Google sign-in** instead of Dev login | Set `BYPASS_AUTH=false` in `.env`, add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, and follow [Google OAuth setup](#google-oauth-setup) for the redirect URI. |
-| **OpenAI** (prospect answers, tailoring, optional CV parsing) | Set `OPENAI_API_KEY` in `.env`. See [Configuration](#configuration). |
+| **OpenAI** (prospect answers, tailoring, optional CV parsing) | Set `SECRETS_ENCRYPTION_KEY` in `.env`, then add a **dedicated test API key** under **Settings → AI settings**. Revoke it on [OpenAI](https://platform.openai.com/api-keys) when you are done and remove it in Settings. |
 | **Git hooks** for Poetry → `requirements.txt` | See [Development Hooks](#development-hooks-optional-but-recommended). |
 
 Auth routes use `/api/v1` (for example `/api/v1/auth/callback`). Most REST APIs are under `/api/...` (for example `/api/applications`). Open `/docs` on the backend for the full list.
@@ -132,7 +132,7 @@ job_tracking/
 - **CV Profile** — parse a DOCX CV to extract experience (optional OpenAI-assisted parsing), edit in a table, export to DOCX or PDF with templates.
 - **Applications** — CRUD with company, role, recruiter, job URL, JD text, notes — per user (soft delete).
 - **Pipeline stages** — timeline per application with validation: Applied → Recruiter Call → Stage 1–5 → Offer, Rejected, or No Feedback (terminal stages block further pipeline stages).
-- **Prospect & tailoring** — AI-assisted answers and tailored CV/cover letter flows when `OPENAI_API_KEY` is set.
+- **Prospect & tailoring** — AI-assisted answers and tailored CV/cover letter flows when the user has saved an OpenAI API key in Settings.
 - **Analytics, CV versions, cover letters, application documents** — supporting APIs and UI.
 - **Health** — `GET /health` (liveness), `GET /ready` (database readiness); Bootstrap UI.
 
@@ -174,4 +174,4 @@ Environment variables are documented in **`.env.example`** (same content at the 
 | STORAGE_PATH          | ./storage                  | Base path for file storage |
 | FILES_ROOT            | (STORAGE_PATH)/files       | Application documents root; optional override |
 | VITE_API_URL          | (empty)                    | Render static site build; backend URL |
-| OPENAI_API_KEY        | (none)                     | Enables OpenAI for prospect/tailoring and optional CV parsing; see `OPENAI_MODEL` in `backend/app/config.py` |
+| SECRETS_ENCRYPTION_KEY | (empty)                    | Fernet key for encrypting per-user OpenAI keys at rest; required to save keys in Settings |

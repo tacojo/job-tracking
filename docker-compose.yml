@@ -15,7 +15,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - BACKEND_URL=${BACKEND_URL:-http://localhost:8000}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - SECRETS_ENCRYPTION_KEY=${SECRETS_ENCRYPTION_KEY:-}
     volumes:
       - ./storage:/app/storage
       - ./backend/app:/app/app

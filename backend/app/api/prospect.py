@@ -7,10 +7,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
-from app.config import settings
 from app.db import get_db
 from app.models import CoverLetterVersion, CVVersion, ProspectQuestion, User
 from app.services import storage
+from app.services.openai_client import call_openai_text
 from app.services.text_extract import extract_text
 from app.services.user_defaults import (
     ensure_user_prospect_questions,
@@ -73,26 +73,6 @@ class AnswerResponse(BaseModel):
     answer: str
 
 
-def _call_openai(system_prompt: str, user_content: str) -> str:
-    if not settings.openai_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="OpenAI API key is not configured. Set OPENAI_API_KEY in .env to use AI tailoring.",
-        )
-    from openai import OpenAI
-
-    client = OpenAI(api_key=settings.openai_api_key)
-    response = client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        max_tokens=4000,
-    )
-    return (response.choices[0].message.content or "").strip()
-
-
 def do_tailor(
     db: Session,
     current_user: User,
@@ -150,7 +130,7 @@ def do_tailor(
             db, current_user.id, "tailor_cv", DEFAULT_TAILOR_CV
         )
         user_content = f"Job spec:\n{job_spec}\n\nCurrent CV:\n{cv_text}"
-        tailored_cv = _call_openai(system_prompt, user_content)
+        tailored_cv = call_openai_text(db, current_user.id, system_prompt, user_content)
 
     if cl_text:
         system_prompt = get_ai_prompt(
@@ -160,7 +140,9 @@ def do_tailor(
             DEFAULT_TAILOR_COVER_LETTER,
         )
         user_content = f"Job spec:\n{job_spec}\n\nCurrent cover letter:\n{cl_text}"
-        tailored_cover_letter = _call_openai(system_prompt, user_content)
+        tailored_cover_letter = call_openai_text(
+            db, current_user.id, system_prompt, user_content
+        )
 
     return TailorResponse(
         tailored_cv=tailored_cv, tailored_cover_letter=tailored_cover_letter
@@ -257,5 +239,5 @@ def generate_prospect_answer(
         context_parts
     )
 
-    answer = _call_openai(system_prompt, user_content)
+    answer = call_openai_text(db, current_user.id, system_prompt, user_content)
     return AnswerResponse(answer=answer)

@@ -11,7 +11,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user
-from app.config import settings
 from app.db import get_db
 from app.models import (
     ConceptRelationship,
@@ -61,6 +60,8 @@ from app.schemas.learning import (
     ReviewRecordRequest,
     TagRead,
 )
+from app.services.openai_client import call_openai_json as _openai_json
+from app.services.openai_client import call_openai_text as _openai_text
 from app.services.user_defaults import get_ai_prompt
 
 router = APIRouter(prefix="/api/learning", tags=["learning"])
@@ -215,45 +216,16 @@ def _answer_readable_line_breaks(text: str | None) -> str:
     return condensed
 
 
-def _call_openai_text(system_prompt: str, user_content: str) -> str:
-    if not settings.openai_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="OpenAI API key is not configured. Set OPENAI_API_KEY in .env.",
-        )
-    from openai import OpenAI
-
-    client = OpenAI(api_key=settings.openai_api_key)
-    response = client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        max_tokens=4000,
-    )
-    return (response.choices[0].message.content or "").strip()
+def _call_openai_text(
+    db: Session, user_id: int, system_prompt: str, user_content: str
+) -> str:
+    return _openai_text(db, user_id, system_prompt, user_content)
 
 
-def _call_openai_json(system_prompt: str, user_content: str) -> str:
-    if not settings.openai_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="OpenAI API key is not configured. Set OPENAI_API_KEY in .env.",
-        )
-    from openai import OpenAI
-
-    client = OpenAI(api_key=settings.openai_api_key)
-    response = client.chat.completions.create(
-        model=settings.openai_model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        response_format={"type": "json_object"},
-        max_tokens=4000,
-    )
-    return (response.choices[0].message.content or "").strip()
+def _call_openai_json(
+    db: Session, user_id: int, system_prompt: str, user_content: str
+) -> str:
+    return _openai_json(db, user_id, system_prompt, user_content)
 
 
 def _parse_content_dict(raw: str) -> dict[str, Any]:
@@ -989,7 +961,9 @@ def _run_ai_suggest_edges_for_item(db: Session, user_id: int, item_id: int) -> i
             "learning_suggest_edges_on_save",
             DEFAULT_LEARNING_SUGGEST_EDGES_ON_SAVE,
         )
-        raw = _call_openai_json(system, json.dumps(user_obj, ensure_ascii=False))
+        raw = _call_openai_json(
+            db, user_id, system, json.dumps(user_obj, ensure_ascii=False)
+        )
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             return 0
@@ -1489,7 +1463,7 @@ def ai_refresh_item(
     if data.audience:
         user_msg += f"\nAudience / depth: {data.audience.strip()}\n"
 
-    raw = _call_openai_json(system, user_msg)
+    raw = _call_openai_json(db, current_user.id, system, user_msg)
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:
@@ -1598,7 +1572,9 @@ def _run_ai_extract_concepts(
     system = get_ai_prompt(
         db, user_id, "learning_extract_concepts", DEFAULT_LEARNING_EXTRACT_CONCEPTS
     )
-    raw = _call_openai_json(system, json.dumps(user_obj, ensure_ascii=False))
+    raw = _call_openai_json(
+        db, user_id, system, json.dumps(user_obj, ensure_ascii=False)
+    )
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:
@@ -1832,7 +1808,9 @@ def learning_ask(
             f"Notion level: {_notion_level_on_item_row(item)}\n"
             f"Body (JSON): {item.content}\n"
         )
-    answer = _call_openai_text(system, data.message.strip() + extra)
+    answer = _call_openai_text(
+        db, current_user.id, system, data.message.strip() + extra
+    )
     return LearningAskResponse(answer=answer)
 
 
@@ -1859,7 +1837,7 @@ def generate_flashcards(
     if data.audience:
         user_msg += f"Audience / depth: {data.audience.strip()}\n"
 
-    raw = _call_openai_json(system, user_msg)
+    raw = _call_openai_json(db, current_user.id, system, user_msg)
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:

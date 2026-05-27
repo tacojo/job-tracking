@@ -64,9 +64,11 @@ class Settings(BaseSettings):
     # Dev: bypass Google auth for local testing
     bypass_auth: bool = False
 
-    # OpenAI (for prospect / tailor CV and cover letter)
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o-mini"  # Displayed in AI settings (not editable)
+    # Fernet key for encrypting user_secrets at rest (generate with cryptography.fernet.Fernet)
+    secrets_encryption_key: str = ""
+
+    # OpenAI model name (read-only in UI); API keys are per-user in user_secrets
+    openai_model: str = "gpt-4o-mini"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
