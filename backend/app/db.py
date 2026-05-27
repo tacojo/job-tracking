@@ -101,6 +101,7 @@ def init_db():
         stage,
         tag,
         user,
+        user_secret,
     )
 
     if settings.is_postgres:

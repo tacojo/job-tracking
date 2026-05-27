@@ -661,17 +661,10 @@ def generate_swot_analysis(
     import json
     import re
 
-    from openai import OpenAI
-
     from app.config import settings
+    from app.services.openai_client import get_openai_client
 
-    if not settings.openai_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="OpenAI API key is not configured. Set OPENAI_API_KEY in .env to use AI analysis.",
-        )
-
-    client = OpenAI(api_key=settings.openai_api_key)
+    client = get_openai_client(db, current_user.id)
     usage_totals: dict[str, int] = {}
 
     try:

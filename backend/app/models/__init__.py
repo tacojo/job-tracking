@@ -25,6 +25,7 @@ from app.models.role import Role
 from app.models.stage import Stage
 from app.models.tag import LearningTag
 from app.models.user import User
+from app.models.user_secret import UserSecret
 
 __all__ = [
     "AiPrompt",
@@ -54,4 +55,5 @@ __all__ = [
     "Stage",
     "LearningTag",
     "User",
+    "UserSecret",
 ]

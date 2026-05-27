@@ -17,6 +17,7 @@ if _TEST_DB.exists():
 os.environ["DATABASE_URL"] = f"sqlite:///{_TEST_DB.as_posix()}"
 os.environ["BYPASS_AUTH"] = "true"
 os.environ["JWT_SECRET"] = "test-jwt-secret-key-for-pytest-only-min-32-chars"
+os.environ["SECRETS_ENCRYPTION_KEY"] = "sDUvW-ouSt-_5AIX9suYDMxK5p4pg_W0IZyBmreeayU="
 os.environ["STORAGE_PATH"] = str(_TEST_STORAGE)
 
 import pytest

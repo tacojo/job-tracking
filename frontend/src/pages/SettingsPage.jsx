@@ -69,6 +69,13 @@ export default function SettingsPage() {
   const [softDeletedListLoading, setSoftDeletedListLoading] = useState(false)
 
   const [aiModel, setAiModel] = useState('')
+  const [openaiKeyConfigured, setOpenaiKeyConfigured] = useState(false)
+  const [openaiKeyMasked, setOpenaiKeyMasked] = useState('')
+  const [openaiKeyInput, setOpenaiKeyInput] = useState('')
+  const [showClearOpenaiKeyModal, setShowClearOpenaiKeyModal] = useState(false)
+  const [clearingOpenaiKey, setClearingOpenaiKey] = useState(false)
+  const [savingOpenaiKey, setSavingOpenaiKey] = useState(false)
+  const [openaiKeySaveMessage, setOpenaiKeySaveMessage] = useState(null)
   const [aiPrompts, setAiPrompts] = useState({
     tailor_cv: '',
     tailor_cover_letter: '',
@@ -90,6 +97,9 @@ export default function SettingsPage() {
       .then((data) => {
         if (!cancelled && data) {
           setAiModel(data.model ?? '')
+          setOpenaiKeyConfigured(Boolean(data.openai_api_key_configured))
+          setOpenaiKeyMasked(data.openai_api_key_masked ?? '')
+          setOpenaiKeyInput('')
           setAiPrompts(data.prompts ?? {
             tailor_cv: '',
             tailor_cover_letter: '',
@@ -126,10 +136,43 @@ export default function SettingsPage() {
     api.settings.ai.update({ prompts: aiPrompts })
       .then((data) => {
         if (data?.prompts) setAiPrompts(data.prompts)
-        setAiSaveMessage('Saved.')
+        setAiSaveMessage('Prompts saved.')
       })
       .catch((err) => setAiSaveMessage(err.message || 'Save failed'))
       .finally(() => setAiSaving(false))
+  }
+
+  const handleSaveOpenaiKey = () => {
+    const key = openaiKeyInput.trim()
+    if (!key) return
+    setOpenaiKeySaveMessage(null)
+    setSavingOpenaiKey(true)
+    api.settings.ai.update({ openai_api_key: key })
+      .then((data) => {
+        setOpenaiKeyConfigured(Boolean(data.openai_api_key_configured))
+        setOpenaiKeyMasked(data.openai_api_key_masked ?? '')
+        setOpenaiKeyInput('')
+        setOpenaiKeySaveMessage('API key saved.')
+      })
+      .catch((err) => setOpenaiKeySaveMessage(err.message || 'Save failed'))
+      .finally(() => setSavingOpenaiKey(false))
+  }
+
+  const handleClearOpenaiKey = async () => {
+    setClearingOpenaiKey(true)
+    setOpenaiKeySaveMessage(null)
+    try {
+      const data = await api.settings.ai.update({ clear_openai_api_key: true })
+      setOpenaiKeyConfigured(Boolean(data.openai_api_key_configured))
+      setOpenaiKeyMasked(data.openai_api_key_masked ?? '')
+      setOpenaiKeyInput('')
+      setShowClearOpenaiKeyModal(false)
+      setOpenaiKeySaveMessage('API key removed from this app.')
+    } catch (err) {
+      alert(err.message || 'Failed to remove API key')
+    } finally {
+      setClearingOpenaiKey(false)
+    }
   }
 
   useEffect(() => {
@@ -244,8 +287,90 @@ export default function SettingsPage() {
               aria-label="AI model"
             />
           </div>
+          <div className="mb-3">
+            <label className="form-label" htmlFor="openai-api-key">
+              OpenAI API key
+            </label>
+            {openaiKeyConfigured && (
+              <p className="small text-muted mb-1">
+                Configured: <code className="user-select-all">{openaiKeyMasked || '••••'}</code>
+              </p>
+            )}
+            <div className="d-flex gap-2 align-items-center flex-wrap">
+              <input
+                id="openai-api-key"
+                type="password"
+                className="form-control font-monospace small flex-grow-1"
+                style={{ minWidth: '12rem' }}
+                autoComplete="off"
+                placeholder={
+                  openaiKeyConfigured
+                    ? 'Enter a new key to replace the saved one'
+                    : 'sk-...'
+                }
+                value={openaiKeyInput}
+                onChange={(e) => {
+                  setOpenaiKeyInput(e.target.value)
+                  setOpenaiKeySaveMessage(null)
+                }}
+                disabled={aiLoading || savingOpenaiKey || clearingOpenaiKey}
+              />
+              <button
+                type="button"
+                className="btn btn-primary btn-sm text-nowrap flex-shrink-0"
+                disabled={
+                  aiLoading
+                  || savingOpenaiKey
+                  || clearingOpenaiKey
+                  || !openaiKeyInput.trim()
+                }
+                onClick={handleSaveOpenaiKey}
+              >
+                {savingOpenaiKey ? 'Saving…' : 'Save key'}
+              </button>
+              {openaiKeyConfigured && (
+                <button
+                  type="button"
+                  className="btn btn-outline-danger btn-sm text-nowrap flex-shrink-0"
+                  disabled={aiLoading || clearingOpenaiKey || savingOpenaiKey}
+                  onClick={() => setShowClearOpenaiKeyModal(true)}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {openaiKeySaveMessage && (
+              <p className="small text-muted mb-0 mt-2">{openaiKeySaveMessage}</p>
+            )}
+            <div className="small text-muted mt-1">
+              <p className="mb-1">
+                Your key is encrypted on the server and used only for your AI features.{' '}
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Create a key on OpenAI
+                </a>
+                .
+              </p>
+              <p className="mb-0">
+                <strong>Tip:</strong> create a separate key for testing (not your main account key).
+                When you are finished, revoke it on OpenAI
+                {openaiKeyConfigured ? (
+                  <> and use <strong>Clear</strong> to remove it from this app.</>
+                ) : (
+                  <>.</>
+                )}
+                {' '}Use <strong>Save key</strong> to store what you paste above.
+              </p>
+            </div>
+          </div>
           {!aiLoading && (
             <>
+              <div className="border-top pt-3 mb-3">
+                <label className="form-label text-muted small mb-0">System prompts</label>
+              </div>
               {Object.entries(AI_PROMPT_LABELS).map(([key, label]) => (
                 <div key={key} className="mb-3">
                   <label className="form-label">{label}</label>
@@ -264,7 +389,7 @@ export default function SettingsPage() {
                   disabled={aiSaving}
                   onClick={handleSaveAiPrompts}
                 >
-                  {aiSaving ? 'Saving…' : 'Save'}
+                  {aiSaving ? 'Saving…' : 'Save prompts'}
                 </button>
                 {aiSaveMessage && (
                   <span className="small text-muted">{aiSaveMessage}</span>
@@ -584,6 +709,59 @@ export default function SettingsPage() {
                   onClick={loadSoftDeletedList}
                 >
                   Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearOpenaiKeyModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex={-1}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Clear saved OpenAI key?</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Close"
+                  disabled={clearingOpenaiKey}
+                  onClick={() => !clearingOpenaiKey && setShowClearOpenaiKeyModal(false)}
+                />
+              </div>
+              <div className="modal-body">
+                <p className="small text-body-secondary mb-2">
+                  This removes the encrypted key from this app. AI features will stop working until you save a new key.
+                </p>
+                <p className="small text-body-secondary mb-0">
+                  It does <strong>not</strong> revoke the key on OpenAI — do that separately at{' '}
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    platform.openai.com/api-keys
+                  </a>
+                  {' '}if you no longer need it.
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  disabled={clearingOpenaiKey}
+                  onClick={() => setShowClearOpenaiKeyModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={clearingOpenaiKey}
+                  onClick={handleClearOpenaiKey}
+                >
+                  {clearingOpenaiKey ? 'Removing…' : 'Clear saved key'}
                 </button>
               </div>
             </div>
