@@ -233,7 +233,7 @@ export default function ApplicationsPage() {
       <SectionCard
         title="Filter"
         headerAside={
-          <div className="d-flex align-items-center flex-wrap gap-3">
+          <div className="d-flex align-items-center flex-wrap flex-md-nowrap gap-2 gap-md-3">
             <div className="d-flex align-items-center gap-2">
               <span className="small text-body-secondary">Is latest status?</span>
               <div className="form-check form-check-inline mb-0">
