@@ -2,10 +2,11 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette import status
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api import (
@@ -30,6 +31,23 @@ from app.api import (
 )
 from app.config import settings
 from app.db import init_db
+
+AUTH_COOKIE_NAME = "auth_token"
+CSRF_COOKIE_NAME = "csrf_token"
+CSRF_HEADER_NAME = "x-csrf-token"
+UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _allowed_origins() -> set[str]:
+    origins = {settings.frontend_url.rstrip("/")}
+    if settings.app_env.strip().lower() not in {"prod", "production"}:
+        origins.update(
+            {
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+            }
+        )
+    return origins
 
 
 @asynccontextmanager
@@ -70,15 +88,50 @@ app.add_middleware(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.frontend_url,
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=sorted(_allowed_origins()),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def enforce_cookie_csrf(request: Request, call_next):
+    """Protect HttpOnly cookie sessions from cross-site unsafe requests."""
+    if request.method.upper() in UNSAFE_METHODS and request.cookies.get(
+        AUTH_COOKIE_NAME
+    ):
+        origin = request.headers.get("origin", "").rstrip("/")
+        if origin not in _allowed_origins():
+            return JSONResponse(
+                {"detail": "Invalid request origin."},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+        csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
+        csrf_header = request.headers.get(CSRF_HEADER_NAME)
+        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+            return JSONResponse(
+                {"detail": "Missing or invalid CSRF token."},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add baseline hardening headers to API responses."""
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=()",
+    )
+    return response
+
 
 app.include_router(health.router)
 app.include_router(auth.router, prefix="/api/v1")

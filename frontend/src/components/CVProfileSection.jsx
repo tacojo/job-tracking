@@ -65,6 +65,7 @@ export default function CVProfileSection({ cvs, onParsed }) {
       const res = await api.cvProfile.export(format, format === 'pdf' ? (template || selectedPdfTemplate) : 'default')
       if (res.status === 401) {
         localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('csrf_token')
         window.location.href = '/login'
         return
       }

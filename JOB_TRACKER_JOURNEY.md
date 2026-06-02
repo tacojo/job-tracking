@@ -128,9 +128,10 @@ Rows are ordered by **practical impact** (top first) for internet-facing or shar
 
 | Area | Assessment |
 |------|------------|
-| **Secrets in production** | Default `JWT_SECRET=change-me-in-production` in compose/README is fine for templates but **must be enforced** in any real deployment: fail startup if still default in prod, or require an explicit env. |
-| **OAuth callback → token in URL** | Redirect uses `?auth_token=` (`backend/app/api/auth.py`). Tokens in query strings can appear in **logs, Referer, browser history**. Acceptable for local dev; for production, prefer **POST message**, **fragment**, or **short-lived code exchange**. |
-| **JWT in `localStorage`** (`frontend/src/contexts/AuthContext.jsx`, `frontend/src/api.js`) | Standard SPA pattern, but **XSS ⇒ full account takeover**. Mitigate with strict CSP, dependency hygiene, and avoiding `dangerouslySetInnerHTML` without sanitization. HttpOnly cookies are harder from a pure SPA without a BFF pattern. |
+| **Secrets in production** | `APP_ENV=production` now fails startup on default `JWT_SECRET`, `BYPASS_AUTH=true`, missing OAuth credentials, or missing `SECRETS_ENCRYPTION_KEY`. Keep this enabled for hosted deployments. |
+| **OAuth callback token handling** | Production OAuth now sets an HttpOnly cookie and no longer redirects with `?auth_token=`. Legacy URL-token ingestion was removed; Dev login still uses localStorage bearer tokens only when `BYPASS_AUTH=true`. |
+| **Cookie auth CSRF** | Cookie sessions use a double-submit CSRF token plus Origin allowlist checks for unsafe methods. Production only allows `FRONTEND_URL`; localhost is dev-only. |
+| **HTML preview/XSS** | DOCX preview HTML from Mammoth is sanitized before `dangerouslySetInnerHTML`, and Render static headers include CSP without inline scripts. Long-term option: replace the custom sanitizer with DOMPurify when npm is available. |
 | **`BYPASS_AUTH` default `true` in Docker** | Convenient for dev; **easy to ship misconfigured**. Document loudly; consider default `false` and explicit opt-in for a compose “dev” profile. |
 | **CORS** | `allow_origins` includes fixed localhost entries plus `settings.frontend_url` (`backend/app/main.py`). For production, **avoid `*`** (not used today — good) and keep the list **minimal**. |
 | **Session + JWT same secret** | `SessionMiddleware` uses `settings.jwt_secret` (`main.py`). Works, but **separating** session signing from JWT signing is cleaner. |

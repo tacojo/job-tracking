@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_storage_bucket: str = ""
     debug: bool = False
+    app_env: str = "development"
 
     @model_validator(mode="after")
     def derive_files_root(self) -> Self:
@@ -32,6 +33,24 @@ class Settings(BaseSettings):
                 self,
                 "files_root",
                 str(Path(self.storage_path) / "files"),
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> Self:
+        if self.app_env.strip().lower() not in {"prod", "production"}:
+            return self
+        if self.bypass_auth:
+            raise ValueError("BYPASS_AUTH must be false when APP_ENV=production")
+        if self.jwt_secret == "change-me-in-production":
+            raise ValueError("JWT_SECRET must be changed when APP_ENV=production")
+        if not self.secrets_encryption_key:
+            raise ValueError(
+                "SECRETS_ENCRYPTION_KEY is required when APP_ENV=production"
+            )
+        if not self.google_client_id or not self.google_client_secret:
+            raise ValueError(
+                "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required when APP_ENV=production"
             )
         return self
 

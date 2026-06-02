@@ -8,26 +8,17 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const checkAuth = async () => {
-    // Check for token in URL (OAuth callback)
-    const params = new URLSearchParams(window.location.search)
-    const tokenFromUrl = params.get('auth_token')
-    if (tokenFromUrl) {
-      localStorage.setItem('auth_token', tokenFromUrl)
-      window.history.replaceState({}, '', window.location.pathname)
-    }
-
-    const token = localStorage.getItem('auth_token')
-    if (!token) {
-      setUser(null)
-      setLoading(false)
-      return
-    }
-
     try {
       const me = await api.auth.me()
+      if (me.csrf_token) {
+        sessionStorage.setItem('csrf_token', me.csrf_token)
+      } else {
+        sessionStorage.removeItem('csrf_token')
+      }
       setUser(me)
     } catch {
       localStorage.removeItem('auth_token')
+      sessionStorage.removeItem('csrf_token')
       setUser(null)
     } finally {
       setLoading(false)
@@ -50,6 +41,7 @@ export function AuthProvider({ children }) {
       // Ignore
     }
     localStorage.removeItem('auth_token')
+    sessionStorage.removeItem('csrf_token')
     setUser(null)
   }
 

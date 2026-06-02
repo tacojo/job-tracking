@@ -6,11 +6,8 @@ import './index.css'
 
 config.autoAddCss = false
 
-// Capture OAuth token before React Router can navigate away from the query string.
-const oauthParams = new URLSearchParams(window.location.search)
-const oauthToken = oauthParams.get('auth_token')
-if (oauthToken) {
-  localStorage.setItem('auth_token', oauthToken)
+// Old OAuth redirects used auth_token in the URL. Strip it without trusting it.
+if (new URLSearchParams(window.location.search).has('auth_token')) {
   window.history.replaceState({}, '', window.location.pathname)
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import mammoth from 'mammoth'
 import { useSettings } from '../contexts/SettingsContext'
 import { maskText } from '../utils/maskText'
+import { sanitizePreviewHtml } from '../utils/sanitizeHtml'
 
 /** Inline preview for documents (PDF, DOCX). Same approach as CVPreview on /cvs. */
 export default function DocumentPreview({ doc, getBlob, onClose }) {
@@ -28,7 +29,7 @@ export default function DocumentPreview({ doc, getBlob, onClose }) {
         } else if (format === 'docx' || format === 'doc') {
           const arrayBuffer = await blob.arrayBuffer()
           const result = await mammoth.convertToHtml({ arrayBuffer })
-          setContent({ type: 'html', html: result.value })
+          setContent({ type: 'html', html: sanitizePreviewHtml(result.value) })
         } else if (format === 'txt') {
           const text = await blob.text()
           setContent({ type: 'text', text })

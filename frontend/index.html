@@ -10,14 +10,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Open+Sans:wght@400;500;600&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
     <title>Job Tracker</title>
-    <script>
-      (function() {
-        var t = localStorage.getItem('job_tracker_theme') || 'light';
-        document.documentElement.setAttribute('data-bs-theme', t);
-        var m = document.getElementById('theme-color-meta');
-        if (m) m.setAttribute('content', t === 'dark' ? '#212529' : '#228b22');
-      })();
-    </script>
   </head>
   <body class="app-shell">
     <div id="root"></div>

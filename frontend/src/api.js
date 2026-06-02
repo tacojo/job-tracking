@@ -5,13 +5,30 @@
 const BASE = import.meta.env.VITE_API_URL ?? '';
 
 function getAuthHeaders() {
+  const headers = {}
   const token = localStorage.getItem('auth_token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
+  const csrf = sessionStorage.getItem('csrf_token') || getCookie('csrf_token')
+  if (token) headers.Authorization = `Bearer ${token}`
+  if (csrf) headers['X-CSRF-Token'] = decodeURIComponent(csrf)
+  return headers
+}
+
+function getCookie(name) {
+  return document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1)
+}
+
+function getRequestHeaders(extra = {}) {
+  return { ...extra, ...getAuthHeaders() }
 }
 
 async function handleResponse(res) {
   if (res.status === 401) {
     localStorage.removeItem('auth_token');
+    sessionStorage.removeItem('csrf_token');
     window.location.href = '/login';
     throw new Error('Not authenticated');
   }
@@ -44,7 +61,7 @@ export const api = {
       fetch(`${BASE}/api/v1/auth/logout`, {
         method: 'POST',
         credentials: 'include',
-        headers: getAuthHeaders(),
+        headers: getRequestHeaders(),
       }).then(handleResponse),
   },
 
@@ -65,14 +82,14 @@ export const api = {
     create: (data) =>
       fetch(`${BASE}/api/companies`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: getRequestHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
         body: JSON.stringify(data),
       }).then(handleResponse),
     addNote: (id, text) =>
       fetch(`${BASE}/api/companies/${id}/notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: getRequestHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
         body: JSON.stringify({ text }),
       }).then(handleResponse),
@@ -80,7 +97,7 @@ export const api = {
       fetch(`${BASE}/api/companies/${id}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: getAuthHeaders(),
+        headers: getRequestHeaders(),
       }).then(handleResponse),
   },
 
@@ -269,6 +286,7 @@ export const api = {
         const res = await fetch(url, { credentials: 'include', headers: getAuthHeaders() })
         if (res.status === 401) {
           localStorage.removeItem('auth_token')
+          sessionStorage.removeItem('csrf_token')
           window.location.href = '/login'
           throw new Error('Not authenticated')
         }
@@ -425,6 +443,7 @@ export const api = {
       })
       if (res.status === 401) {
         localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('csrf_token')
         window.location.href = '/login'
         throw new Error('Not authenticated')
       }
@@ -455,6 +474,7 @@ export const api = {
       })
       if (res.status === 401) {
         localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('csrf_token')
         window.location.href = '/login'
         throw new Error('Not authenticated')
       }
