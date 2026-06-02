@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import mammoth from 'mammoth'
 import { api } from '../api'
+import { sanitizePreviewHtml } from '../utils/sanitizeHtml'
 
 export default function CoverLetterPreview({ coverLetter, onClose }) {
   const [content, setContent] = useState(null)
@@ -22,7 +23,7 @@ export default function CoverLetterPreview({ coverLetter, onClose }) {
         } else if (coverLetter.file_type === 'docx') {
           const arrayBuffer = await blob.arrayBuffer()
           const result = await mammoth.convertToHtml({ arrayBuffer })
-          setContent({ type: 'html', html: result.value })
+          setContent({ type: 'html', html: sanitizePreviewHtml(result.value) })
         } else {
           setContent({ type: 'unsupported' })
         }

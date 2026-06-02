@@ -8,9 +8,15 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=sqlite:///./storage/db/job_tracking.db
-      - STORAGE_PATH=./storage
-      - FILES_ROOT=/app/storage/files
+      - APP_ENV=${APP_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./storage/db/job_tracking.db}
+      - DATABASE_URL_POSTGRES=${DATABASE_URL_POSTGRES:-}
+      - STORAGE_PATH=${STORAGE_PATH:-./storage}
+      - FILES_ROOT=${FILES_ROOT:-/app/storage/files}
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-}
+      - SUPABASE_STORAGE_BUCKET=${SUPABASE_STORAGE_BUCKET:-job-tracker-files}
       - BYPASS_AUTH=${BYPASS_AUTH:-true}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}

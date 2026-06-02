@@ -19,6 +19,14 @@ def _normalize_key(key: str) -> str:
     return key.replace("\\", "/").lstrip("/")
 
 
+def _safe_join(root: Path, relative_key: str) -> Path:
+    root_resolved = root.resolve()
+    path = (root_resolved / _normalize_key(relative_key)).resolve()
+    if path != root_resolved and root_resolved not in path.parents:
+        raise ValueError("Storage path escapes configured storage root")
+    return path
+
+
 def key_for_app_document(relative_path: str) -> str:
     """Object key for application document paths (relative to files root)."""
     return _normalize_key(f"files/{relative_path}")
@@ -32,8 +40,8 @@ def key_for_upload(relative_path: str) -> str:
 def _local_path_for_key(key: str) -> Path:
     key = _normalize_key(key)
     if key.startswith("files/"):
-        return Path(settings.files_root) / key[len("files/") :]
-    return Path(settings.storage_path) / key
+        return _safe_join(Path(settings.files_root), key[len("files/") :])
+    return _safe_join(Path(settings.storage_path), key)
 
 
 def _supabase_client() -> httpx.Client:
@@ -130,7 +138,8 @@ def delete_prefix(prefix: str) -> None:
         if not names:
             return
         paths = [quote(f"{prefix}/{n}" if prefix else n, safe="/") for n in names]
-        del_r = client.delete(
+        del_r = client.request(
+            "DELETE",
             f"/storage/v1/object/{bucket}",
             json={"prefixes": paths},
         )

@@ -2,34 +2,107 @@
 
 Manage CV versions and job applications with pipeline stages. Prospect answers, tailor CV and cover letters from job descriptions, and parse CVs with optional **OpenAI** when each user adds their API key in **Settings → AI settings**.
 
-## Quick start (new clone)
+## How To Run It
+
+The app has three separate pieces of configuration:
+
+- `DATABASE_URL` controls application data: users, applications, stages, CV profiles, notes, learning data, and AI settings.
+- `STORAGE_BACKEND` controls uploaded files only: CV uploads, cover letters, job description files, and application documents.
+- `BYPASS_AUTH` controls whether local Dev login is available instead of Google OAuth.
+
+Setting `STORAGE_BACKEND=supabase` does **not** move applications to Supabase. To use Supabase for the application list, set `DATABASE_URL` to your Supabase Postgres connection string.
 
 You do **not** need to create a `storage/` folder by hand. The backend creates `./storage` (database directory, files root, and uploads as needed) when it starts.
 
-**Fastest path:** use Docker. **Alternative:** run the backend and frontend on the host with Poetry and npm.
+### Mode 1 — Fully Local
 
-### Option A — Docker (recommended)
+Use this when you want to clone the repo and run the app without Supabase.
+
+- Database: local SQLite under `./storage/db/job_tracking.db`
+- Uploaded files: local `./storage`
+- Auth: Dev login (`BYPASS_AUTH=true`)
 
 1. Install [Docker](https://docs.docker.com/get-docker/) and Docker Compose.
-2. Clone this repository and open a terminal in the **project root** (the folder that contains `docker-compose.yml`).
-3. Create your environment file:  
-   `cp .env.example .env`  
-   The example sets `BYPASS_AUTH=true`, so you can use **Dev login** on first run without Google OAuth.
-4. **Project log (optional):** On first start, the frontend container creates `docs/tickets.json`, `docs/adrs.json`, and `docs/activity-log.json` from the committed `*.sample.json` files if they are missing. Those JSON files are **not** in git (local data only).
-5. Start everything (build images the first time):  
-   `docker compose up --build`  
-   Later, when you have not changed dependencies or Dockerfiles, you can use `docker compose up`.
-6. Open **http://localhost:5173** in your browser.
+2. Clone this repository and open a terminal in the project root (the folder that contains `docker-compose.yml`).
+3. Create your environment file:
 
-Data (SQLite DB and uploaded files) lives under **`./storage/`** on your machine and persists across restarts and `docker compose down`.
+   ```bash
+   cp .env.example .env
+   ```
 
-**Hot-reload:** Edits under `backend/app/` and `frontend/src/` reload without rebuilding the image. Rebuild when you change `requirements.txt`, `package.json`, or a Dockerfile.
+4. Keep these local defaults in `.env`:
 
-### Option B — Local (no Docker)
+   ```env
+   DATABASE_URL=sqlite:///./storage/db/job_tracking.db
+   STORAGE_BACKEND=local
+   STORAGE_PATH=./storage
+   BYPASS_AUTH=true
+   BACKEND_URL=http://localhost:8000
+   FRONTEND_URL=http://localhost:5173
+   ```
+
+5. Start everything:
+
+   ```bash
+   docker compose up --build
+   ```
+
+6. Open **http://localhost:5173**.
+
+Data persists under `./storage/` across restarts and `docker compose down`.
+
+### Mode 2 — Local App With Your Own Supabase
+
+Use this when you want to run the frontend and backend locally, but store app data and uploads in your own Supabase project.
+
+- Database: Supabase Postgres
+- Uploaded files: Supabase Storage
+- Auth: Dev login locally, or Google OAuth if you configure it
+
+1. Create a Supabase project.
+2. Copy the **direct** database connection string from Supabase. Use the direct connection on port `5432` with `sslmode=require`, not the pooler, for migrations/startup schema creation.
+3. Create a private Supabase Storage bucket, for example `job-tracker-files`.
+4. Update `.env` in the project root:
+
+   ```env
+   DATABASE_URL=postgresql+psycopg2://postgres.[ref]:[PASSWORD]@db.[ref].supabase.co:5432/postgres?sslmode=require
+   DATABASE_URL_POSTGRES=postgresql+psycopg2://postgres.[ref]:[PASSWORD]@db.[ref].supabase.co:5432/postgres?sslmode=require
+   STORAGE_BACKEND=supabase
+   STORAGE_PATH=./storage
+   SUPABASE_URL=https://[ref].supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   SUPABASE_STORAGE_BUCKET=job-tracker-files
+   BYPASS_AUTH=true
+   BACKEND_URL=http://localhost:8000
+   FRONTEND_URL=http://localhost:5173
+   JWT_SECRET=change-me-to-a-local-random-string
+   ```
+
+5. Start the app:
+
+   ```bash
+   docker compose up --build
+   ```
+
+On startup, the backend runs Alembic migrations when `DATABASE_URL` points to Postgres, so a fresh Supabase database gets the application tables automatically. The Storage bucket still needs to be created manually in Supabase.
+
+### Mode 3 — Online Deployment
+
+Use this when you want the app available from any device.
+
+- Backend: Render Docker web service
+- Frontend: Render static site
+- Database: Supabase Postgres
+- Uploaded files: Supabase Storage
+- Auth: Google OAuth (`BYPASS_AUTH=false`)
+
+Deploy from `render.yaml` or follow the full runbook in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Set the Render backend `DATABASE_URL` to your Supabase Postgres direct connection string, set `STORAGE_BACKEND=supabase`, and provide the Supabase service role key and bucket name.
+
+### Local Without Docker
 
 1. Install **Python 3.11+**, **Poetry**, and **Node.js** (18+).
 2. Clone the repository and go to the project root.
-3. **Backend** (terminal 1):
+3. Backend terminal:
 
    ```bash
    cd backend
@@ -38,9 +111,9 @@ Data (SQLite DB and uploaded files) lives under **`./storage/`** on your machine
    poetry run uvicorn app.main:app --reload
    ```
 
-   The backend reads `.env` from the **current working directory** (`backend/`), so keep `backend/.env` there. You can copy from `backend/.env.example` or from the project root’s `.env.example` (they match).
+   The backend reads `.env` from the current working directory (`backend/`), so keep `backend/.env` there. You can copy from `backend/.env.example` or from the project root’s `.env.example` (they match).
 
-4. **Frontend** (terminal 2):
+4. Frontend terminal:
 
    ```bash
    cd frontend
@@ -48,15 +121,17 @@ Data (SQLite DB and uploaded files) lives under **`./storage/`** on your machine
    npm run dev
    ```
 
-   `npm run dev` runs a **predev** step that creates `docs/tickets.json`, `docs/adrs.json`, and `docs/activity-log.json` from `docs/*.sample.json` when those files are missing (same as Docker). Log JSON is gitignored.
-
 5. Open **http://localhost:5173**.
 
 API docs: **http://localhost:8000/docs**. Database readiness: **http://localhost:8000/ready**.
 
+`npm run dev` and the Docker frontend entrypoint create `docs/tickets.json`, `docs/adrs.json`, and `docs/activity-log.json` from `docs/*.sample.json` when those files are missing. Log JSON is gitignored.
+
 `package-lock.json` is committed so `npm ci` matches CI and Docker. After changing frontend dependencies, run `npm install`, update the lockfile, and commit it.
 
-### Optional next steps
+**Hot-reload:** Docker mounts `backend/app/` and `frontend/src/`, so app code edits reload without rebuilding the image. Rebuild when you change `requirements.txt`, `package.json`, or a Dockerfile.
+
+### Optional Next Steps
 
 | If you want… | Do this |
 |--------------|---------|
@@ -155,20 +230,21 @@ Full runbook: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** (schema prep, migrati
 
 ## Configuration
 
-Environment variables are documented in **`.env.example`** (same content at the **project root** and under **`backend/`**). Copy to **`.env` in the project root** when using Docker Compose; copy to **`backend/.env`** when running `uvicorn` from the `backend/` folder (see [Quick start](#quick-start-new-clone)).
+Environment variables are documented in **`.env.example`** (same content at the **project root** and under **`backend/`**). Copy to **`.env` in the project root** when using Docker Compose; copy to **`backend/.env`** when running `uvicorn` from the `backend/` folder (see [How To Run It](#how-to-run-it)).
 
 | Variable              | Default                    | Description |
 |-----------------------|----------------------------|-------------|
+| APP_ENV               | development                | Set to `production` on hosted deployments to fail startup on unsafe auth/secrets config. |
 | BYPASS_AUTH           | `false`                    | Skip Google OAuth and show Dev login when `true`. Root `.env.example` sets `true`; Docker Compose defaults to `true` if the variable is unset. |
 | GOOGLE_CLIENT_ID      | (empty)                    | Required when `BYPASS_AUTH` is false |
 | GOOGLE_CLIENT_SECRET  | (empty)                    | Required when `BYPASS_AUTH` is false |
 | JWT_SECRET            | change-me-in-production    | Secret for JWT signing and session middleware |
 | BACKEND_URL           | http://localhost:8000      | Backend URL (OAuth `redirect_uri`) |
 | FRONTEND_URL          | http://localhost:5173      | Frontend URL (post-login redirect) |
-| DATABASE_URL          | sqlite:///./storage/db/job_tracking.db | SQLite (local) or Postgres URL (Render) |
-| DATABASE_URL_POSTGRES | (empty)                    | Optional; migration/schema scripts target |
-| STORAGE_BACKEND       | local                      | `local` (dev) or `supabase` (Render production) |
-| SUPABASE_URL          | (empty)                    | Required when `STORAGE_BACKEND=supabase` |
+| DATABASE_URL          | sqlite:///./storage/db/job_tracking.db | Database for application records. Use SQLite locally or a Supabase/Postgres URL for cloud data. |
+| DATABASE_URL_POSTGRES | (empty)                    | Optional explicit Postgres URL for migration/schema scripts; often the same as Supabase `DATABASE_URL`. |
+| STORAGE_BACKEND       | local                      | File/blob storage only: `local` writes to disk, `supabase` writes uploads to Supabase Storage. |
+| SUPABASE_URL          | (empty)                    | Required when `STORAGE_BACKEND=supabase`. |
 | SUPABASE_SERVICE_ROLE_KEY | (empty)                | Backend only; never expose to frontend |
 | SUPABASE_STORAGE_BUCKET | job-tracker-files        | Private bucket for CVs, JDs, etc. |
 | STORAGE_PATH          | ./storage                  | Base path for file storage |

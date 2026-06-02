@@ -1,7 +1,10 @@
 """Google OAuth and JWT auth endpoints."""
 
+import secrets
+
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -10,6 +13,28 @@ from app.services.auth import create_access_token, get_or_create_user
 from app.services.superuser import is_superuser
 
 router = APIRouter(tags=["auth"])
+
+AUTH_COOKIE_NAME = "auth_token"
+CSRF_COOKIE_NAME = "csrf_token"
+
+
+def _auth_cookie_options() -> dict:
+    """Cookie options that work locally and on HTTPS deployments."""
+    secure = settings.frontend_url.lower().startswith("https://")
+    return {
+        "httponly": True,
+        "secure": secure,
+        "samesite": "none" if secure else "lax",
+        "path": "/",
+    }
+
+
+def _csrf_cookie_options() -> dict:
+    """Readable by the SPA so it can echo the value in X-CSRF-Token."""
+    opts = _auth_cookie_options().copy()
+    opts["httponly"] = False
+    return opts
+
 
 oauth = OAuth()
 oauth.register(
@@ -34,9 +59,7 @@ async def auth_google(request: Request):
 
 
 @router.get("/auth/callback", name="auth_callback")
-async def auth_callback(
-    request: Request, response: Response, db: Session = Depends(get_db)
-):
+async def auth_callback(request: Request, db: Session = Depends(get_db)):
     """Handle Google OAuth callback, create/find user, set JWT cookie, redirect to frontend."""
     if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(status_code=503, detail="Google OAuth not configured.")
@@ -52,22 +75,37 @@ async def auth_callback(
 
     google_id = userinfo.get("sub")
     email = userinfo.get("email", "")
+    email_verified = userinfo.get("email_verified")
     name = userinfo.get("name")
     picture = userinfo.get("picture")
 
     if not google_id or not email:
         raise HTTPException(status_code=400, detail="Missing required user info.")
+    if email_verified is not True:
+        raise HTTPException(status_code=403, detail="Google email is not verified.")
 
     user = get_or_create_user(
         db, google_id=google_id, email=email, name=name, picture=picture
     )
     jwt_token = create_access_token(user.id)
 
-    # Redirect to /login so SPA routing does not drop ?auth_token= before AuthContext runs.
+    # Store the session in an HttpOnly cookie; do not expose the JWT in the URL.
     base = settings.frontend_url.rstrip("/")
-    redirect_url = f"{base}/login?auth_token={jwt_token}"
+    redirect_url = f"{base}/login"
     response = Response(status_code=302)
     response.headers["Location"] = redirect_url
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=jwt_token,
+        max_age=settings.jwt_expire_minutes * 60,
+        **_auth_cookie_options(),
+    )
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=secrets.token_urlsafe(32),
+        max_age=settings.jwt_expire_minutes * 60,
+        **_csrf_cookie_options(),
+    )
     return response
 
 
@@ -82,7 +120,7 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header[7:]
     if not token:
-        token = request.cookies.get("auth_token")
+        token = request.cookies.get(AUTH_COOKIE_NAME)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated.")
 
@@ -100,15 +138,17 @@ async def auth_me(request: Request, db: Session = Depends(get_db)):
         "name": user.name,
         "picture": user.picture,
         "is_superuser": is_superuser(user),
+        "csrf_token": request.cookies.get(CSRF_COOKIE_NAME),
     }
 
 
 @router.post("/auth/logout")
-async def auth_logout(response: Response):
+async def auth_logout():
     """Clear auth cookie."""
-    response = Response()
-    response.delete_cookie(key="auth_token", path="/")
-    return {"ok": True}
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(key=AUTH_COOKIE_NAME, **_auth_cookie_options())
+    response.delete_cookie(key=CSRF_COOKIE_NAME, **_csrf_cookie_options())
+    return response
 
 
 @router.get("/auth/dev-available")
