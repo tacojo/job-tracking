@@ -88,11 +88,20 @@ def write_bytes(
 def read_bytes(key: str) -> bytes:
     key = _normalize_key(key)
     if settings.uses_supabase_storage:
-        bucket = settings.supabase_storage_bucket
-        path = quote(key, safe="/")
-        r = _supabase_client().get(f"/storage/v1/object/{bucket}/{path}")
+        local_path = _local_path_for_key(key)
+        try:
+            bucket = settings.supabase_storage_bucket
+            path = quote(key, safe="/")
+            r = _supabase_client().get(f"/storage/v1/object/{bucket}/{path}")
+            if r.status_code == 200:
+                return r.content
+        except (RuntimeError, httpx.HTTPError):
+            if local_path.is_file():
+                return local_path.read_bytes()
+            raise
+        if local_path.is_file():
+            return local_path.read_bytes()
         r.raise_for_status()
-        return r.content
     path = _local_path_for_key(key)
     return path.read_bytes()
 
@@ -100,21 +109,32 @@ def read_bytes(key: str) -> bytes:
 def exists(key: str) -> bool:
     key = _normalize_key(key)
     if settings.uses_supabase_storage:
-        bucket = settings.supabase_storage_bucket
-        path = quote(key, safe="/")
-        r = _supabase_client().get(f"/storage/v1/object/{bucket}/{path}")
-        return r.status_code == 200
+        try:
+            bucket = settings.supabase_storage_bucket
+            path = quote(key, safe="/")
+            r = _supabase_client().get(f"/storage/v1/object/{bucket}/{path}")
+            if r.status_code == 200:
+                return True
+        except (RuntimeError, httpx.HTTPError):
+            pass
+        return _local_path_for_key(key).is_file()
     return _local_path_for_key(key).is_file()
 
 
 def delete_key(key: str) -> None:
     key = _normalize_key(key)
     if settings.uses_supabase_storage:
+        local_path = _local_path_for_key(key)
         bucket = settings.supabase_storage_bucket
-        path = quote(key, safe="/")
-        r = _supabase_client().delete(f"/storage/v1/object/{bucket}/{path}")
-        if r.status_code not in (200, 204, 404):
+        r = _supabase_client().request(
+            "DELETE",
+            f"/storage/v1/object/{bucket}",
+            json={"prefixes": [key]},
+        )
+        if r.status_code not in (200, 204, 404) and not local_path.exists():
             r.raise_for_status()
+        if local_path.exists():
+            local_path.unlink()
         return
     path = _local_path_for_key(key)
     if path.exists():
@@ -124,6 +144,7 @@ def delete_key(key: str) -> None:
 def delete_prefix(prefix: str) -> None:
     """Delete all objects under a key prefix (local dir tree or best-effort list on Supabase)."""
     prefix = _normalize_key(prefix)
+    local_path = _local_path_for_key(prefix)
     if settings.uses_supabase_storage:
         bucket = settings.supabase_storage_bucket
         client = _supabase_client()
@@ -132,10 +153,14 @@ def delete_prefix(prefix: str) -> None:
             json={"prefix": prefix, "limit": 1000},
         )
         if list_r.status_code == 404:
+            if local_path.is_dir():
+                shutil.rmtree(local_path)
             return
         list_r.raise_for_status()
         names = [item["name"] for item in list_r.json() if item.get("name")]
         if not names:
+            if local_path.is_dir():
+                shutil.rmtree(local_path)
             return
         paths = [quote(f"{prefix}/{n}" if prefix else n, safe="/") for n in names]
         del_r = client.request(
@@ -145,10 +170,11 @@ def delete_prefix(prefix: str) -> None:
         )
         if del_r.status_code not in (200, 204):
             del_r.raise_for_status()
+        if local_path.is_dir():
+            shutil.rmtree(local_path)
         return
-    path = _local_path_for_key(prefix)
-    if path.is_dir():
-        shutil.rmtree(path)
+    if local_path.is_dir():
+        shutil.rmtree(local_path)
     elif prefix.startswith("files/"):
         alt = Path(settings.files_root) / prefix[len("files/") :]
         if alt.is_dir():
@@ -156,9 +182,7 @@ def delete_prefix(prefix: str) -> None:
 
 
 def open_local_path(key: str) -> Optional[Path]:
-    """Return local Path when using filesystem; None when blobs are remote-only."""
-    if settings.uses_supabase_storage:
-        return None
+    """Return local Path when present, including fallback files in Supabase mode."""
     path = _local_path_for_key(key)
     return path if path.is_file() else None
 

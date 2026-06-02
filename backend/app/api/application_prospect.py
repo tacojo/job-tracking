@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user
 from app.api.prospect import do_tailor
+from app.config import settings
 from app.db import get_db
 from app.models import (
     Application,
@@ -32,6 +33,10 @@ from app.services.docx_from_text import create_docx_from_text
 from app.services.text_extract import extract_text
 
 router = APIRouter(prefix="/api/applications", tags=["application-prospect"])
+
+
+def _storage_provider() -> str:
+    return "supabase" if settings.uses_supabase_storage else "local"
 
 
 def _resolve_app(db: Session, app_id: str, user_id: int) -> Application:
@@ -346,7 +351,7 @@ def save_tailored_docx(
             format="docx",
             mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             size_bytes=len(docx_bytes),
-            storage_provider="local",
+            storage_provider=_storage_provider(),
             created_by=current_user.id,
         )
         db.add(doc)
@@ -375,7 +380,7 @@ def save_tailored_docx(
             format="docx",
             mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             size_bytes=len(docx_bytes),
-            storage_provider="local",
+            storage_provider=_storage_provider(),
             created_by=current_user.id,
         )
         db.add(doc)
@@ -446,7 +451,7 @@ def set_job_spec_from_text(
         format="txt",
         mime_type="text/plain",
         size_bytes=len(content_bytes),
-        storage_provider="local",
+        storage_provider=_storage_provider(),
         created_by=current_user.id,
     )
     db.add(doc)
@@ -661,7 +666,6 @@ def generate_swot_analysis(
     import json
     import re
 
-    from app.config import settings
     from app.services.openai_client import get_openai_client
 
     client = get_openai_client(db, current_user.id)
