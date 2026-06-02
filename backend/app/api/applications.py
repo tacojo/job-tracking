@@ -58,6 +58,8 @@ def _app_to_read(app: Application, notes_log: list | None = None) -> dict:
         "company": company,
         "role": role,
         "recruiter": recruiter,
+        "recruiter_id": app.recruiter_id,
+        "recruiter_link": app.recruiter_rel.link if app.recruiter_rel else None,
         "contact_notes": _contact_notes_from_app(app),
         "jd_text": app.job_description.text if app.job_description else None,
         "job_url": app.job_description.source_url if app.job_description else None,

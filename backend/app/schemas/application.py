@@ -38,6 +38,8 @@ class ApplicationRead(ApplicationBase):
     id: int
     uuid: str
     company_id: int
+    recruiter_id: Optional[int] = None
+    recruiter_link: Optional[str] = None
     job_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime

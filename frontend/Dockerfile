@@ -9,7 +9,7 @@ COPY scripts/ensure-project-log-docs.mjs ./scripts/
 COPY frontend/docker-entrypoint.sh ./docker-entrypoint.sh
 COPY frontend/ .
 
-RUN chmod +x /app/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 5173
 
