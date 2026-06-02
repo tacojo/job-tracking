@@ -21,7 +21,6 @@ export default function ApplicationDetailPage() {
   const [app, setApp] = useState(null)
   const [appsList, setAppsList] = useState([])
   const [documents, setDocuments] = useState([])
-  const [recruiterLink, setRecruiterLink] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [stageExpandedId, setStageExpandedId] = useState(null)
@@ -31,7 +30,6 @@ export default function ApplicationDetailPage() {
   const [jobSpecText, setJobSpecText] = useState('')
   const [jobSpecSaving, setJobSpecSaving] = useState(false)
   const [jobSpecError, setJobSpecError] = useState(null)
-  const [hasStages, setHasStages] = useState(false)
 
   const load = async () => {
     if (!appId) return
@@ -46,26 +44,6 @@ export default function ApplicationDetailPage() {
       setApp(data)
       setDocuments(docs)
       setAppsList(list)
-      
-      // Check if there are stages (use numeric ID from app data)
-      try {
-        const stages = await api.stages.list(data.id)
-        setHasStages(stages && stages.length > 0)
-      } catch {
-        setHasStages(false)
-      }
-      if (data.recruiter) {
-        try {
-          const res = await api.recruiters.list({ page: 1, page_size: 100 })
-          const recruiters = res?.items || []
-          const match = recruiters.find((r) => r.name === data.recruiter)
-          setRecruiterLink(match?.link || null)
-        } catch {
-          setRecruiterLink(null)
-        }
-      } else {
-        setRecruiterLink(null)
-      }
     } catch (e) {
       setError(e.message || 'Failed to load application')
     } finally {
@@ -82,14 +60,6 @@ export default function ApplicationDetailPage() {
     // StageList will auto-expand the latest stage for that application.
     setStageExpandedId(null)
   }, [app?.id])
-
-  useEffect(() => {
-    if (hasStages) {
-      setMainTab('stages')
-    } else {
-      setMainTab('prospect')
-    }
-  }, [app?.id, hasStages])
 
   /** Refetch only the current application (e.g. after stage edit). No loading state, no full reload. */
   const refetchApplication = async () => {
@@ -254,7 +224,7 @@ export default function ApplicationDetailPage() {
             expandedId={stageExpandedId}
             onExpandedChange={setStageExpandedId}
             recruiterName={app.recruiter}
-            recruiterLink={recruiterLink}
+            recruiterLink={app.recruiter_link}
           />
         ) : (
           <NotesSection

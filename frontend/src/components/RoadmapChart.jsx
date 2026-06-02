@@ -283,21 +283,64 @@ export function splitByChar(value, separator) {
 }
 
 export default function RoadmapChart() {
+  const containerRef = useRef(null)
+  const [shouldLoad, setShouldLoad] = useState(false)
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    const node = containerRef.current
+    if (!node) return
+    if (!('IntersectionObserver' in window)) {
+      setLoading(true)
+      setShouldLoad(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setLoading(true)
+          setShouldLoad(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!shouldLoad) return
+    let cancelled = false
+    setLoading(true)
     api.analytics
       .getRoadmap()
-      .then((d) => setData(d))
-      .catch(() => setData({ timeline: [] }))
-      .finally(() => setLoading(false))
-  }, [])
+      .then((d) => {
+        if (!cancelled) setData(d)
+      })
+      .catch(() => {
+        if (!cancelled) setData({ timeline: [] })
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [shouldLoad])
 
   const timeline = data?.timeline ?? []
 
-  if (loading) return <div className="text-muted small">Loading roadmap…</div>
-  if (timeline.length === 0) return <p className="text-muted small mb-0">No active applications to display.</p>
+  if (!shouldLoad) return <div ref={containerRef} className="text-muted small">Roadmap will load when visible.</div>
+  if (loading) return <div ref={containerRef} className="text-muted small">Loading roadmap…</div>
+  if (timeline.length === 0) {
+    return <p ref={containerRef} className="text-muted small mb-0">No active applications to display.</p>
+  }
 
-  return <RoadmapChartInner timeline={timeline} />
+  return (
+    <div ref={containerRef}>
+      <RoadmapChartInner timeline={timeline} />
+    </div>
+  )
 }
